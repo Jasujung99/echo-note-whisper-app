@@ -14,7 +14,98 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          echo_enabled: boolean | null
+          id: string
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          echo_enabled?: boolean | null
+          id?: string
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          echo_enabled?: boolean | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      voice_message_recipients: {
+        Row: {
+          created_at: string
+          id: string
+          listened_at: string | null
+          message_id: string
+          recipient_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          listened_at?: string | null
+          message_id: string
+          recipient_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          listened_at?: string | null
+          message_id?: string
+          recipient_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_message_recipients_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "voice_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voice_messages: {
+        Row: {
+          audio_url: string
+          created_at: string
+          duration: number
+          id: string
+          is_broadcast: boolean | null
+          sender_id: string
+          title: string | null
+        }
+        Insert: {
+          audio_url: string
+          created_at?: string
+          duration: number
+          id?: string
+          is_broadcast?: boolean | null
+          sender_id: string
+          title?: string | null
+        }
+        Update: {
+          audio_url?: string
+          created_at?: string
+          duration?: number
+          id?: string
+          is_broadcast?: boolean | null
+          sender_id?: string
+          title?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

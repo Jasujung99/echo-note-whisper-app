@@ -1,66 +1,53 @@
-import { useState } from "react";
-import { VoiceRecorder } from "@/components/VoiceRecorder";
-import { VoiceMessageList } from "@/components/VoiceMessageList";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mic, List } from "lucide-react";
 
-interface VoiceMessage {
-  id: string;
-  blob: Blob;
-  duration: number;
-  timestamp: Date;
-  title: string;
-}
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { AuthForm } from "@/components/AuthForm";
+import { MainRecorder } from "@/components/MainRecorder";
+import { VoiceChatList } from "@/components/VoiceChatList";
+import { Settings } from "@/components/Settings";
+import { BottomNav } from "@/components/BottomNav";
 
 const Index = () => {
-  const [messages, setMessages] = useState<VoiceMessage[]>([]);
-  const [activeTab, setActiveTab] = useState("record");
+  const { user, loading } = useAuth();
+  const [activeTab, setActiveTab] = useState("home");
 
-  const handleMessageSaved = (message: VoiceMessage) => {
-    setMessages(prev => [message, ...prev]);
-    setActiveTab("messages");
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-lg text-muted-foreground">로딩 중...</div>
+      </div>
+    );
+  }
 
-  const handleDeleteMessage = (id: string) => {
-    setMessages(prev => prev.filter(msg => msg.id !== id));
+  if (!user) {
+    return <AuthForm />;
+  }
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'messages':
+        return <VoiceChatList />;
+      case 'home':
+        return (
+          <div className="text-center py-6 border-b border-border/50 mb-6">
+            <h1 className="text-2xl font-bold text-foreground mb-2">음성 쪽지</h1>
+            <p className="text-muted-foreground mb-8">모든 사용자에게 음성 메시지를 전송하세요</p>
+            <MainRecorder />
+          </div>
+        );
+      case 'settings':
+        return <Settings />;
+      default:
+        return null;
+    }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-2xl p-4">
-        {/* Header */}
-        <div className="text-center py-6 border-b border-border/50 mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-2">음성 쪽지</h1>
-          <p className="text-muted-foreground">간편하게 음성 메시지를 녹음하고 관리하세요</p>
-        </div>
-
-        {/* Navigation Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-8">
-            <TabsTrigger value="record" className="flex items-center space-x-2">
-              <Mic className="w-4 h-4" />
-              <span>녹음</span>
-            </TabsTrigger>
-            <TabsTrigger value="messages" className="flex items-center space-x-2">
-              <List className="w-4 h-4" />
-              <span>메시지 ({messages.length})</span>
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Record Tab */}
-          <TabsContent value="record" className="mt-0">
-            <VoiceRecorder onMessageSaved={handleMessageSaved} />
-          </TabsContent>
-
-          {/* Messages Tab */}
-          <TabsContent value="messages" className="mt-0">
-            <VoiceMessageList 
-              messages={messages} 
-              onDeleteMessage={handleDeleteMessage}
-            />
-          </TabsContent>
-        </Tabs>
+    <div className="min-h-screen bg-background pb-20">
+      <div className="container mx-auto max-w-2xl">
+        {renderContent()}
       </div>
+      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 };
