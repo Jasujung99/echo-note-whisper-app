@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,43 +9,43 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 222 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 7%; /* #121212 차콜 블랙 */
+    --foreground: 0 0% 98%;
 
-    --card: 217 32.6% 17.5%;
-    --card-foreground: 210 40% 98%;
+    --card: 210 25% 15%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 217 32.6% 17.5%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 210 25% 15%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 6 93% 71%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 168 70% 54%; /* #3FD6B2 딥 민트 */
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 217 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 259 29% 64%; /* #9F89BC 미디엄 라벤더 */
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 217 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 210 25% 15%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 6 93% 71%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 45 72% 47%; /* #C89C2B 딥 골드 */
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 217 32.6% 17.5%;
-    --input: 217 32.6% 17.5%;
-    --ring: 6 93% 71%;
+    --border: 210 25% 20%;
+    --input: 210 25% 20%;
+    --ring: 168 70% 54%; /* 딥 민트 */
 
     --radius: 1rem;
     
     /* Voice message app specific colors */
-    --record-button: 6 93% 71%;
-    --record-button-active: 6 93% 65%;
-    --record-button-hover: 6 93% 75%;
-    --voice-wave: 6 93% 71%;
-    --message-item: 217 32.6% 20%;
-    --message-item-hover: 217 32.6% 25%;
+    --record-button: 168 70% 54%; /* 딥 민트 */
+    --record-button-active: 168 70% 48%;
+    --record-button-hover: 168 70% 60%;
+    --voice-wave: 168 70% 54%;
+    --message-item: 210 25% 18%;
+    --message-item-hover: 210 25% 22%;
     
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -54,59 +55,53 @@ All colors MUST be HSL.
     --shadow-glow: 0 0 20px hsl(var(--primary) / 0.3);
     --shadow-record: 0 8px 32px hsl(var(--primary) / 0.4);
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
+    --sidebar-background: 216 34% 17%; /* #122C5B 네이비 블루 */
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 168 70% 54%; /* 딥 민트 */
     --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 216 34% 22%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 216 34% 25%;
+    --sidebar-ring: 168 70% 54%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 7%;
+    --foreground: 0 0% 98%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 210 25% 15%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 210 25% 15%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 168 70% 54%;
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 259 29% 64%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 210 25% 15%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 45 72% 47%;
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 210 25% 20%;
+    --input: 210 25% 20%;
+    --ring: 168 70% 54%;
+    
+    --sidebar-background: 216 34% 17%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 168 70% 54%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 216 34% 22%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 216 34% 25%;
+    --sidebar-ring: 168 70% 54%;
   }
 }
 

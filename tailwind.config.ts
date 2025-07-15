@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -67,7 +68,13 @@ export default {
 				'record-button-hover': 'hsl(var(--record-button-hover))',
 				'voice-wave': 'hsl(var(--voice-wave))',
 				'message-item': 'hsl(var(--message-item))',
-				'message-item-hover': 'hsl(var(--message-item-hover))'
+				'message-item-hover': 'hsl(var(--message-item-hover))',
+				// Mint Wave 팔레트 색상 추가
+				'deep-mint': '168 70% 54%', /* #3FD6B2 */
+				'medium-lavender': '259 29% 64%', /* #9F89BC */
+				'deep-gold': '45 72% 47%', /* #C89C2B */
+				'navy-blue': '216 34% 17%', /* #122C5B */
+				'charcoal-black': '0 0% 7%' /* #121212 */
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
