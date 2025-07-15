@@ -63,16 +63,13 @@ export const VoiceChatList = () => {
         .select(`
           message_id,
           listened_at,
-          voice_messages (
+          voice_messages!inner (
             id,
             audio_url,
             duration,
             created_at,
             title,
-            sender_id,
-            profiles (
-              username
-            )
+            sender_id
           )
         `)
         .eq('recipient_id', user.id)
@@ -80,10 +77,28 @@ export const VoiceChatList = () => {
 
       if (error) throw error;
 
+      // Get sender profiles separately
+      const messageIds = data?.map(item => item.voice_messages.sender_id) || [];
+      const uniqueSenderIds = [...new Set(messageIds)];
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, username')
+        .in('user_id', uniqueSenderIds);
+
+      if (profilesError) throw profilesError;
+
+      // Create a map of user_id to profile
+      const profilesMap = profilesData?.reduce((acc, profile) => {
+        acc[profile.user_id] = profile;
+        return acc;
+      }, {} as Record<string, { username: string }>) || {};
+
       const formattedMessages = data
         ?.map(item => ({
           ...item.voice_messages,
-          listened: !!item.listened_at
+          listened: !!item.listened_at,
+          profiles: profilesMap[item.voice_messages.sender_id]
         }))
         .filter(Boolean) as VoiceMessage[];
 
