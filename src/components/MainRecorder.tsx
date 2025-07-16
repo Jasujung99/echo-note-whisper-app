@@ -1,15 +1,18 @@
-
 import { useState, useRef, useEffect } from "react";
-import { Mic, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
+import { Radio, CirclePlay, CirclePause, StopCircle, Waves } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { MessageReceiveToggle } from "./MessageReceiveToggle";
 
 export const MainRecorder = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -161,6 +164,20 @@ export const MainRecorder = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const playRecording = () => {
+    if (audioBlob) {
+      const audio = new Audio(audioBlob);
+      audio.play();
+    }
+  };
+
+  const sendMessage = () => {
+    if (audioBlob) {
+      // Implement message sending logic here
+      console.log("Sending message with audio:", audioBlob);
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
@@ -179,67 +196,97 @@ export const MainRecorder = () => {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8 p-8">
-      {/* Recording Timer */}
-      {isRecording && (
-        <div className="text-center animate-fade-in">
-          <div className="text-4xl font-mono font-bold text-foreground mb-2">
-            {formatTime(recordingTime)}
-          </div>
-          <div className="text-muted-foreground">모든 사용자에게 전송 중...</div>
-        </div>
-      )}
-      
-      {/* Audio Visualization */}
-      {isRecording && (
-        <div className="flex items-center justify-center space-x-1 h-16">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <div
-              key={index}
-              className="w-2 bg-primary rounded-full transition-all duration-75"
-              style={{
-                height: `${Math.max(8, audioLevel * 60 + Math.random() * 20)}px`,
-                animationDelay: `${index * 0.1}s`
-              }}
-            />
-          ))}
-        </div>
-      )}
-      
-      {/* Main Record Button */}
-      <div className="relative">
-        <Button
-          size="lg"
-          onClick={isRecording ? stopRecording : startRecording}
-          className={`
-            w-40 h-40 rounded-full border-4 transition-all duration-300 
-            ${isRecording 
-              ? 'bg-primary/80 border-primary/30 animate-pulse shadow-2xl' 
-              : 'bg-primary hover:bg-primary/90 border-primary/20 hover:scale-105 shadow-xl'
-            }
-            shadow-primary/30
-          `}
-        >
-          {isRecording ? (
-            <Square className="w-16 h-16 text-white" />
-          ) : (
-            <Mic className="w-16 h-16 text-white" />
-          )}
-        </Button>
-        
-        {/* Pulse Ring Animation */}
-        {isRecording && (
-          <div className="absolute inset-0 rounded-full border-4 border-primary/30 animate-ping" />
-        )}
+    <div className="min-h-screen bg-gradient-to-br from-navy-50 to-lavender-50 p-4">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-2xl font-bold text-navy-900 flex items-center gap-2">
+          <Radio className="w-7 h-7 text-primary" />
+          메아리
+        </h1>
+        <MessageReceiveToggle />
       </div>
-      
-      {/* Instructions */}
-      <div className="text-center text-muted-foreground max-w-sm">
-        {isRecording ? (
-          <p>음성 메시지를 모든 사용자에게 전송하고 있습니다. 완료하려면 버튼을 다시 눌러주세요.</p>
-        ) : (
-          <p>버튼을 눌러서 모든 사용자에게 음성 메시지를 전송하세요.</p>
-        )}
+
+      {/* Main Recording Area */}
+      <div className="max-w-md mx-auto space-y-6">
+        <Card className="p-8 bg-card/80 backdrop-blur-sm border-border/50 shadow-lg">
+          <div className="text-center space-y-6">
+            {/* Recording Button */}
+            <div className="flex justify-center">
+              <Button
+                size="lg"
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={isProcessing}
+                className={`w-24 h-24 rounded-full border-4 transition-all duration-300 ${
+                  isRecording
+                    ? 'bg-navy-600 hover:bg-navy-700 border-navy-300 shadow-lg shadow-navy-200'
+                    : 'bg-primary hover:bg-primary/90 border-primary/30 shadow-lg shadow-primary/20'
+                }`}
+              >
+                {isRecording ? (
+                  <CirclePause className="w-8 h-8 text-white" />
+                ) : (
+                  <Radio className="w-8 h-8 text-white" />
+                )}
+              </Button>
+            </div>
+
+            {/* Status Text */}
+            <div className="space-y-2">
+              <p className="text-lg font-medium text-navy-900">
+                {isRecording ? '녹음 중...' : '탭하여 녹음 시작'}
+              </p>
+              {isRecording && (
+                <div className="flex justify-center items-center space-x-2">
+                  <Waves className="w-4 h-4 text-primary animate-pulse" />
+                  <span className="text-sm text-muted-foreground">
+                    {formatTime(recordingTime)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Controls */}
+            {audioBlob && !isRecording && (
+              <div className="flex justify-center space-x-4">
+                <Button
+                  variant="outline"
+                  onClick={playRecording}
+                  disabled={isProcessing}
+                  className="flex items-center space-x-2"
+                >
+                  <CirclePlay className="w-4 h-4" />
+                  <span>재생</span>
+                </Button>
+                
+                <Button
+                  onClick={sendMessage}
+                  disabled={isProcessing}
+                  className="flex items-center space-x-2 bg-primary hover:bg-primary/90"
+                >
+                  <Radio className="w-4 h-4" />
+                  <span>메아리 보내기</span>
+                </Button>
+              </div>
+            )}
+
+            {isProcessing && (
+              <div className="flex justify-center items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+                <span className="text-sm text-muted-foreground">처리 중...</span>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Recording Tips */}
+        <Card className="p-4 bg-card/60 backdrop-blur-sm border-border/30">
+          <div className="text-center space-y-2">
+            <p className="text-sm font-medium text-navy-800">메아리 사용법</p>
+            <p className="text-xs text-muted-foreground">
+              음성 메시지를 녹음하여 다른 사용자들과 공유하세요
+            </p>
+          </div>
+        </Card>
       </div>
     </div>
   );

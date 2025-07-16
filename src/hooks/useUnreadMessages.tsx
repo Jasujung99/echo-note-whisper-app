@@ -13,6 +13,18 @@ export const useUnreadMessages = () => {
     if (!user) return;
 
     try {
+      // Check if user wants to receive messages
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('receive_messages')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!profile?.receive_messages) {
+        setUnreadCount(0);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('voice_message_recipients')
         .select('id')
@@ -58,7 +70,16 @@ export const useUnreadMessages = () => {
             table: 'voice_message_recipients',
             filter: `recipient_id=eq.${user.id}`
           },
-          (payload) => {
+          async (payload) => {
+            // Check if user wants to receive messages before showing notifications
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('receive_messages')
+              .eq('user_id', user.id)
+              .single();
+
+            if (!profile?.receive_messages) return;
+
             setUnreadCount(prev => prev + 1);
             
             // Show toast notification

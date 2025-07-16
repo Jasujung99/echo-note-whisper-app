@@ -3,13 +3,14 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { LogOut, Volume2, VolumeX } from "lucide-react";
+import { DoorOpen, Speaker, SpeakerX, Mail, MailX } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export const Settings = () => {
   const [echoEnabled, setEchoEnabled] = useState(true);
+  const [receiveMessages, setReceiveMessages] = useState(true);
   const [loading, setLoading] = useState(false);
   
   const { user, signOut } = useAuth();
@@ -27,7 +28,7 @@ export const Settings = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('echo_enabled')
+        .select('echo_enabled, receive_messages')
         .eq('user_id', user.id)
         .single();
 
@@ -35,6 +36,7 @@ export const Settings = () => {
       
       if (data) {
         setEchoEnabled(data.echo_enabled ?? true);
+        setReceiveMessages(data.receive_messages ?? true);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -72,6 +74,37 @@ export const Settings = () => {
     }
   };
 
+  const updateReceiveMessagesSetting = async (enabled: boolean) => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(
+          { user_id: user.id, receive_messages: enabled },
+          { onConflict: 'user_id' }
+        );
+
+      if (error) throw error;
+
+      setReceiveMessages(enabled);
+      toast({
+        title: "설정 저장됨",
+        description: `메시지 수신이 ${enabled ? '활성화' : '비활성화'}되었습니다.`
+      });
+    } catch (error) {
+      console.error('Error updating receive messages setting:', error);
+      toast({
+        title: "설정 오류",
+        description: "설정을 저장할 수 없습니다.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -97,9 +130,9 @@ export const Settings = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             {echoEnabled ? (
-              <Volume2 className="w-5 h-5 text-primary" />
+              <Speaker className="w-5 h-5 text-primary" />
             ) : (
-              <VolumeX className="w-5 h-5 text-muted-foreground" />
+              <SpeakerX className="w-5 h-5 text-muted-foreground" />
             )}
             <div>
               <h3 className="font-medium">메아리</h3>
@@ -111,6 +144,30 @@ export const Settings = () => {
           <Switch
             checked={echoEnabled}
             onCheckedChange={updateEchoSetting}
+            disabled={loading}
+          />
+        </div>
+      </Card>
+
+      {/* Receive Messages Setting */}
+      <Card className="p-4 bg-card border-border">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            {receiveMessages ? (
+              <Mail className="w-5 h-5 text-primary" />
+            ) : (
+              <MailX className="w-5 h-5 text-muted-foreground" />
+            )}
+            <div>
+              <h3 className="font-medium">메시지 수신</h3>
+              <p className="text-sm text-muted-foreground">
+                새로운 메아리 메시지 알림을 받습니다
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={receiveMessages}
+            onCheckedChange={updateReceiveMessagesSetting}
             disabled={loading}
           />
         </div>
@@ -133,7 +190,7 @@ export const Settings = () => {
           onClick={handleSignOut}
           className="w-full flex items-center space-x-2 bg-secondary hover:bg-secondary/90"
         >
-          <LogOut className="w-4 h-4" />
+          <DoorOpen className="w-4 h-4" />
           <span>로그아웃</span>
         </Button>
       </Card>

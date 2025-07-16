@@ -1,11 +1,9 @@
-
 import { useState, useEffect } from "react";
-import { Play, Pause, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CirclePlay, CirclePause, StopCircle, Clock, Volume2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 
 interface VoiceMessage {
@@ -13,66 +11,41 @@ interface VoiceMessage {
   audio_url: string;
   duration: number;
   created_at: string;
-  title: string;
   sender_id: string;
-  listened: boolean;
-  profiles?: {
-    username: string;
-  };
+  listened_at?: string;
 }
 
 export const VoiceChatList = () => {
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
-  const [playingId, setPlayingId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  
+  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const { user } = useAuth();
-  const { toast } = useToast();
   const { markAsRead } = useUnreadMessages();
 
   useEffect(() => {
-    if (user) {
-      fetchMessages();
-      markAsRead(); // Mark messages as viewed when opening the list
-      
-      // Subscribe to new messages
-      const channel = supabase
-        .channel('voice-messages')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'voice_message_recipients',
-            filter: `recipient_id=eq.${user.id}`
-          },
-          () => {
-            fetchMessages();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
+    fetchMessages();
   }, [user]);
 
   const fetchMessages = async () => {
     if (!user) return;
 
+    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('voice_message_recipients')
         .select(`
-          message_id,
+          id,
+          created_at,
           listened_at,
-          voice_messages!inner (
+          message_id,
+          voice_messages (
             id,
             audio_url,
             duration,
             created_at,
-            title,
             sender_id
           )
         `)
@@ -81,190 +54,166 @@ export const VoiceChatList = () => {
 
       if (error) throw error;
 
-      // Get sender profiles separately
-      const messageIds = data?.map(item => item.voice_messages.sender_id) || [];
-      const uniqueSenderIds = [...new Set(messageIds)];
+      const formattedMessages = data.map(item => ({
+        id: item.voice_messages.id,
+        audio_url: item.voice_messages.audio_url,
+        duration: item.voice_messages.duration,
+        created_at: item.voice_messages.created_at,
+        sender_id: item.voice_messages.sender_id,
+        listened_at: item.listened_at
+      }));
 
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, username')
-        .in('user_id', uniqueSenderIds);
-
-      if (profilesError) throw profilesError;
-
-      // Create a map of user_id to profile
-      const profilesMap = profilesData?.reduce((acc, profile) => {
-        acc[profile.user_id] = profile;
-        return acc;
-      }, {} as Record<string, { username: string }>) || {};
-
-      const formattedMessages = data
-        ?.map(item => ({
-          ...item.voice_messages,
-          listened: !!item.listened_at,
-          profiles: profilesMap[item.voice_messages.sender_id]
-        }))
-        .filter(Boolean) as VoiceMessage[];
-
-      setMessages(formattedMessages || []);
+      setMessages(formattedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
-      toast({
-        title: "메시지 로드 오류",
-        description: "음성 메시지를 불러올 수 없습니다.",
-        variant: "destructive"
-      });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const playMessage = async (message: VoiceMessage) => {
-    try {
-      if (playingId === message.id) {
-        setPlayingId(null);
-        return;
+    if (currentlyPlaying === message.id) {
+      stopAudio();
+      return;
+    }
+
+    if (audioRef.current) {
+      stopAudio();
+    }
+
+    setCurrentlyPlaying(message.id);
+    setIsPlaying(true);
+
+    audioRef.current = new Audio(message.audio_url);
+    audioRef.current.play();
+
+    audioRef.current.onended = () => {
+      stopAudio();
+    };
+
+    // Mark as read
+    if (!message.listened_at) {
+      try {
+        const { error } = await supabase
+          .from('voice_message_recipients')
+          .update({ listened_at: new Date().toISOString() })
+          .eq('message_id', message.id)
+          .eq('recipient_id', user?.id);
+
+        if (error) throw error;
+        markAsRead();
+        fetchMessages();
+      } catch (error) {
+        console.error('Error marking as read:', error);
       }
-
-      const audio = new Audio(message.audio_url);
-      
-      audio.addEventListener('ended', () => {
-        setPlayingId(null);
-        markAsListened(message.id);
-      });
-
-      await audio.play();
-      setPlayingId(message.id);
-      
-    } catch (error) {
-      console.error("Error playing audio:", error);
-      toast({
-        title: "재생 오류",
-        description: "음성 메시지를 재생할 수 없습니다.",
-        variant: "destructive"
-      });
     }
   };
 
-  const markAsListened = async (messageId: string) => {
-    if (!user) return;
-
-    try {
-      await supabase
-        .from('voice_message_recipients')
-        .update({ listened_at: new Date().toISOString() })
-        .eq('message_id', messageId)
-        .eq('recipient_id', user.id);
-    } catch (error) {
-      console.error('Error marking as listened:', error);
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
     }
+    setIsPlaying(false);
+    setCurrentlyPlaying(null);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.round(seconds % 60);
+    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+  };
+
+  const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    
-    if (hours < 1) {
-      const minutes = Math.floor(diff / (1000 * 60));
-      return `${minutes}분 전`;
-    } else if (hours < 24) {
-      return `${hours}시간 전`;
+    const diffDays = Math.floor(diff / (1000 * 3600 * 24));
+
+    if (diffDays === 0) {
+      return '오늘';
+    } else if (diffDays === 1) {
+      return '어제';
+    } else if (diffDays < 7) {
+      return `${diffDays}일 전`;
     } else {
-      return date.toLocaleDateString('ko-KR', {
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     }
   };
 
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <div className="text-muted-foreground">메시지를 불러오는 중...</div>
-      </div>
-    );
-  }
-
-  if (messages.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="w-24 h-24 rounded-full bg-card flex items-center justify-center mb-4">
-          <MessageCircle className="w-8 h-8 text-secondary" />
-        </div>
-        <h3 className="text-lg font-semibold mb-2">받은 메시지가 없습니다</h3>
-        <p className="text-muted-foreground">다른 사용자들의 음성 메시지를 기다리고 있습니다.</p>
-      </div>
-    );
-  }
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   return (
-    <div className="space-y-4 p-4">
-      <h2 className="text-xl font-bold mb-4">받은 음성 메시지</h2>
+    <div className="space-y-4 p-4 pb-20">
+      <h2 className="text-xl font-bold mb-4">받은 메아리</h2>
       
-      {messages.map((message) => {
-        const isPlaying = playingId === message.id;
-        const isUnread = !message.listened;
-
-        return (
+      {messages.length === 0 ? (
+        <Card className="p-6 text-center bg-card/60 backdrop-blur-sm">
+          <Volume2 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+          <p className="text-muted-foreground">
+            아직 받은 메아리가 없습니다
+          </p>
+        </Card>
+      ) : (
+        messages.map((message) => (
           <Card 
             key={message.id} 
-            className={`p-4 transition-colors border ${
-              isUnread 
-                ? 'bg-card border-secondary/30 shadow-sm' 
-                : 'bg-muted/30 hover:bg-muted/50'
+            className={`p-4 transition-all duration-200 ${
+              !message.listened_at 
+                ? 'bg-primary/5 border-primary/20 shadow-sm' 
+                : 'bg-card/80 border-border/50'
             }`}
           >
-            <div className="flex items-center space-x-4">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => playMessage(message)}
-                className={`w-12 h-12 rounded-full flex-shrink-0 ${
-                  isUnread 
-                    ? 'bg-secondary hover:bg-secondary/90 text-white' 
-                    : 'bg-primary hover:bg-primary/90 text-white'
-                }`}
-              >
-                {isPlaying ? (
-                  <Pause className="w-5 h-5" />
-                ) : (
-                  <Play className="w-5 h-5" />
-                )}
-              </Button>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className={`font-medium truncate ${
-                    isUnread ? 'text-foreground font-semibold' : 'text-foreground'
-                  }`}>
-                    {message.profiles?.username || '익명 사용자'}
-                    {isUnread && (
-                      <span className="ml-2 w-2 h-2 bg-secondary rounded-full inline-block"></span>
-                    )}
-                  </h3>
-                  <span className="text-sm text-muted-foreground flex-shrink-0">
-                    {formatDuration(message.duration)}
-                  </span>
-                </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Button
+                  size="sm"
+                  variant={!message.listened_at ? "default" : "outline"}
+                  onClick={() => playMessage(message)}
+                  disabled={isLoading}
+                  className="rounded-full w-10 h-10 p-0"
+                >
+                  {currentlyPlaying === message.id && isPlaying ? (
+                    <CirclePause className="w-4 h-4" />
+                  ) : (
+                    <CirclePlay className="w-4 h-4" />
+                  )}
+                </Button>
                 
-                <p className="text-sm text-muted-foreground">
-                  {formatDate(message.created_at)}
-                </p>
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">
+                      {formatTime(message.duration)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formatDate(message.created_at)}
+                  </p>
+                </div>
               </div>
+
+              {currentlyPlaying === message.id && isPlaying && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => stopAudio()}
+                  className="rounded-full w-8 h-8 p-0"
+                >
+                  <StopCircle className="w-3 h-3" />
+                </Button>
+              )}
+
+              {!message.listened_at && (
+                <div className="w-2 h-2 bg-primary rounded-full"></div>
+              )}
             </div>
           </Card>
-        );
-      })}
+        ))
+      )}
     </div>
   );
 };

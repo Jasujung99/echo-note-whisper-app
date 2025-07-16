@@ -1,5 +1,5 @@
 
-import { MessageCircle, Mic, Settings } from "lucide-react";
+import { Mail, Radio, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 
@@ -12,9 +12,9 @@ export const BottomNav = ({ activeTab, onTabChange }: BottomNavProps) => {
   const { unreadCount } = useUnreadMessages();
   
   const tabs = [
-    { id: 'messages', icon: MessageCircle, label: '메시지' },
-    { id: 'home', icon: Mic, label: '홈' },
-    { id: 'settings', icon: Settings, label: '설정' },
+    { id: 'messages', icon: Mail, label: '메시지' },
+    { id: 'home', icon: Radio, label: '홈' },
+    { id: 'settings', icon: SlidersHorizontal, label: '설정' },
   ];
 
   return (
