@@ -1,12 +1,12 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Radio, CirclePlay, CirclePause, StopCircle, Waves } from "lucide-react";
+import { Radio, CirclePlay, CirclePause, Sparkles, Waves } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { MessageReceiveToggle } from "./MessageReceiveToggle";
+import { VoiceEffectSelector } from "./VoiceEffectSelector";
 
 export const MainRecorder = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -14,6 +14,9 @@ export const MainRecorder = () => {
   const [audioLevel, setAudioLevel] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showEffects, setShowEffects] = useState(false);
+  const [selectedEffect, setSelectedEffect] = useState("normal");
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -21,6 +24,7 @@ export const MainRecorder = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const animationRef = useRef<number | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -45,9 +49,10 @@ export const MainRecorder = () => {
         chunks.push(event.data);
       };
       
-      mediaRecorderRef.current.onstop = async () => {
+      mediaRecorderRef.current.onstop = () => {
         const blob = new Blob(chunks, { type: "audio/webm" });
-        await uploadVoiceMessage(blob);
+        setAudioBlob(blob);
+        setShowEffects(true);
         
         // Clean up
         if (streamRef.current) {
@@ -61,6 +66,8 @@ export const MainRecorder = () => {
       mediaRecorderRef.current.start();
       setIsRecording(true);
       setRecordingTime(0);
+      setShowEffects(false);
+      setAudioBlob(null);
       
       // Start timer
       intervalRef.current = setInterval(() => {
@@ -102,15 +109,69 @@ export const MainRecorder = () => {
     }
   };
 
+  const updateAudioLevel = () => {
+    if (!analyserRef.current || !isRecording) return;
+    
+    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+    analyserRef.current.getByteFrequencyData(dataArray);
+    
+    const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+    setAudioLevel(average / 255);
+    
+    animationRef.current = requestAnimationFrame(updateAudioLevel);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const applyVoiceEffect = (blob: Blob, effectId: string): Blob => {
+    // 실제 음성 효과는 Web Audio API를 사용하여 구현
+    // 여기서는 기본적으로 원본을 반환하지만, 실제로는 각 효과에 맞는 처리를 해야 함
+    console.log(`Applying effect: ${effectId}`);
+    return blob;
+  };
+
+  const previewWithEffect = (effectId: string) => {
+    if (!audioBlob) return;
+
+    // 기존 재생 중인 오디오 정지
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      previewAudioRef.current = null;
+    }
+
+    setIsPreviewPlaying(true);
+    
+    // 효과가 적용된 오디오 생성 (실제로는 Web Audio API 사용)
+    const processedBlob = applyVoiceEffect(audioBlob, effectId);
+    const audioUrl = URL.createObjectURL(processedBlob);
+    
+    previewAudioRef.current = new Audio(audioUrl);
+    previewAudioRef.current.play();
+    
+    previewAudioRef.current.onended = () => {
+      setIsPreviewPlaying(false);
+      URL.revokeObjectURL(audioUrl);
+    };
+  };
+
   const uploadVoiceMessage = async (blob: Blob) => {
     if (!user) return;
 
     try {
+      setIsProcessing(true);
+      
+      // 선택된 효과 적용
+      const processedBlob = applyVoiceEffect(blob, selectedEffect);
+      
       // Upload audio file to Supabase Storage
       const fileName = `${user.id}/${Date.now()}.webm`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('voice-messages')
-        .upload(fileName, blob);
+        .upload(fileName, processedBlob);
 
       if (uploadError) throw uploadError;
 
@@ -136,6 +197,11 @@ export const MainRecorder = () => {
         title: "전송 완료",
         description: "모든 사용자에게 음성 메시지가 전송되었습니다."
       });
+
+      // 초기화
+      setAudioBlob(null);
+      setShowEffects(false);
+      setSelectedEffect("normal");
       
     } catch (error) {
       console.error("Error uploading voice message:", error);
@@ -144,45 +210,22 @@ export const MainRecorder = () => {
         description: "음성 메시지 전송에 실패했습니다.",
         variant: "destructive"
       });
-    }
-  };
-
-  const updateAudioLevel = () => {
-    if (!analyserRef.current || !isRecording) return;
-    
-    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-    analyserRef.current.getByteFrequencyData(dataArray);
-    
-    const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-    setAudioLevel(average / 255);
-    
-    animationRef.current = requestAnimationFrame(updateAudioLevel);
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const playRecording = () => {
-    if (audioBlob) {
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      audio.play();
-      
-      // Clean up the URL after playing
-      audio.onended = () => {
-        URL.revokeObjectURL(audioUrl);
-      };
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const sendMessage = () => {
     if (audioBlob) {
-      // Implement message sending logic here
-      console.log("Sending message with audio:", audioBlob);
+      uploadVoiceMessage(audioBlob);
     }
+  };
+
+  const resetRecording = () => {
+    setAudioBlob(null);
+    setShowEffects(false);
+    setSelectedEffect("normal");
+    setRecordingTime(0);
   };
 
   useEffect(() => {
@@ -198,6 +241,9 @@ export const MainRecorder = () => {
       }
       if (audioContextRef.current) {
         audioContextRef.current.close();
+      }
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
       }
     };
   }, []);
@@ -240,7 +286,7 @@ export const MainRecorder = () => {
             {/* Status Text */}
             <div className="space-y-2">
               <p className="text-lg font-medium text-navy-900">
-                {isRecording ? '녹음 중...' : '탭하여 녹음 시작'}
+                {isRecording ? '녹음 중...' : audioBlob ? '녹음 완료' : '탭하여 녹음 시작'}
               </p>
               {isRecording && (
                 <div className="flex justify-center items-center space-x-2">
@@ -250,19 +296,45 @@ export const MainRecorder = () => {
                   </span>
                 </div>
               )}
+              {audioBlob && !isRecording && (
+                <div className="text-sm text-muted-foreground">
+                  {formatTime(recordingTime)}
+                </div>
+              )}
             </div>
 
             {/* Controls */}
-            {audioBlob && !isRecording && (
+            {audioBlob && !isRecording && !showEffects && (
               <div className="flex justify-center space-x-4">
                 <Button
                   variant="outline"
-                  onClick={playRecording}
+                  onClick={() => setShowEffects(true)}
                   disabled={isProcessing}
                   className="flex items-center space-x-2"
                 >
-                  <CirclePlay className="w-4 h-4" />
-                  <span>재생</span>
+                  <Sparkles className="w-4 h-4" />
+                  <span>효과 선택</span>
+                </Button>
+                
+                <Button
+                  onClick={sendMessage}
+                  disabled={isProcessing}
+                  className="flex items-center space-x-2 bg-primary hover:bg-primary/90"
+                >
+                  <Radio className="w-4 h-4" />
+                  <span>바로 보내기</span>
+                </Button>
+              </div>
+            )}
+
+            {audioBlob && !isRecording && showEffects && (
+              <div className="flex justify-center space-x-4">
+                <Button
+                  variant="outline"
+                  onClick={resetRecording}
+                  disabled={isProcessing}
+                >
+                  다시 녹음
                 </Button>
                 
                 <Button
@@ -284,6 +356,17 @@ export const MainRecorder = () => {
             )}
           </div>
         </Card>
+
+        {/* Voice Effect Selector */}
+        {audioBlob && showEffects && (
+          <VoiceEffectSelector
+            audioBlob={audioBlob}
+            selectedEffect={selectedEffect}
+            onEffectSelect={setSelectedEffect}
+            onPreview={previewWithEffect}
+            isPlaying={isPreviewPlaying}
+          />
+        )}
 
         {/* Recording Tips */}
         <Card className="p-4 bg-card/60 backdrop-blur-sm border-border/30">
