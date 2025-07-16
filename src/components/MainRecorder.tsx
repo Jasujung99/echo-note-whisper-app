@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Radio, CirclePlay, CirclePause, Sparkles, Waves } from "lucide-react";
+import { Radio, CirclePlay, CirclePause, Sparkles, Waves, RotateCcw } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -52,7 +52,6 @@ export const MainRecorder = () => {
       mediaRecorderRef.current.onstop = () => {
         const blob = new Blob(chunks, { type: "audio/webm" });
         setAudioBlob(blob);
-        setShowEffects(true);
         
         // Clean up
         if (streamRef.current) {
@@ -195,7 +194,9 @@ export const MainRecorder = () => {
 
       toast({
         title: "전송 완료",
-        description: "모든 사용자에게 음성 메시지가 전송되었습니다."
+        description: selectedEffect === "normal" 
+          ? "모든 사용자에게 음성 메시지가 전송되었습니다."
+          : `'${getEffectName(selectedEffect)}' 효과와 함께 전송되었습니다.`
       });
 
       // 초기화
@@ -213,6 +214,19 @@ export const MainRecorder = () => {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const getEffectName = (effectId: string) => {
+    const effects = {
+      normal: "기본 목소리",
+      whisper: "속삭임",
+      cozy: "작은 방",
+      vintage: "옛 라디오",
+      warm: "따스하게",
+      breeze: "바람 소리",
+      cave: "동굴"
+    };
+    return effects[effectId as keyof typeof effects] || "기본 목소리";
   };
 
   const sendMessage = () => {
@@ -304,47 +318,53 @@ export const MainRecorder = () => {
             </div>
 
             {/* Controls */}
-            {audioBlob && !isRecording && !showEffects && (
-              <div className="flex justify-center space-x-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowEffects(true)}
-                  disabled={isProcessing}
-                  className="flex items-center space-x-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>효과 선택</span>
-                </Button>
-                
-                <Button
-                  onClick={sendMessage}
-                  disabled={isProcessing}
-                  className="flex items-center space-x-2 bg-primary hover:bg-primary/90"
-                >
-                  <Radio className="w-4 h-4" />
-                  <span>바로 보내기</span>
-                </Button>
-              </div>
-            )}
-
-            {audioBlob && !isRecording && showEffects && (
-              <div className="flex justify-center space-x-4">
-                <Button
-                  variant="outline"
-                  onClick={resetRecording}
-                  disabled={isProcessing}
-                >
-                  다시 녹음
-                </Button>
-                
-                <Button
-                  onClick={sendMessage}
-                  disabled={isProcessing}
-                  className="flex items-center space-x-2 bg-primary hover:bg-primary/90"
-                >
-                  <Radio className="w-4 h-4" />
-                  <span>메아리 보내기</span>
-                </Button>
+            {audioBlob && !isRecording && (
+              <div className="space-y-3">
+                {!showEffects ? (
+                  <div className="flex justify-center space-x-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowEffects(true)}
+                      disabled={isProcessing}
+                      className="flex items-center space-x-2"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>효과 선택</span>
+                    </Button>
+                    
+                    <Button
+                      onClick={sendMessage}
+                      disabled={isProcessing}
+                      className="flex items-center space-x-2 bg-primary hover:bg-primary/90"
+                    >
+                      <Radio className="w-4 h-4" />
+                      <span>바로 보내기</span>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex justify-center space-x-3">
+                    <Button
+                      variant="outline"
+                      onClick={resetRecording}
+                      disabled={isProcessing}
+                      className="flex items-center space-x-2"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      <span>다시 녹음</span>
+                    </Button>
+                    
+                    <Button
+                      onClick={sendMessage}
+                      disabled={isProcessing}
+                      className="flex items-center space-x-2 bg-primary hover:bg-primary/90"
+                    >
+                      <Radio className="w-4 h-4" />
+                      <span>
+                        {selectedEffect === "normal" ? "메아리 보내기" : `${getEffectName(selectedEffect)}로 보내기`}
+                      </span>
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -373,7 +393,10 @@ export const MainRecorder = () => {
           <div className="text-center space-y-2">
             <p className="text-sm font-medium text-navy-800">메아리 사용법</p>
             <p className="text-xs text-muted-foreground">
-              음성 메시지를 녹음하여 다른 사용자들과 공유하세요
+              {audioBlob && showEffects 
+                ? "효과를 선택하여 미리 들어보고 마음에 드는 감성으로 메시지를 보내세요"
+                : "음성 메시지를 녹음하여 다른 사용자들과 공유하세요"
+              }
             </p>
           </div>
         </Card>

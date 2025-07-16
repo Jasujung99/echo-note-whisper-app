@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Sparkles, Volume2, Radio, Wind, Heart, MessageSquare } from "lucide-react";
+import { Sparkles, Volume2, Radio, Wind, Heart, MessageSquare, Home, Mountain } from "lucide-react";
 
 interface VoiceEffect {
   id: string;
@@ -28,7 +28,7 @@ const voiceEffects: VoiceEffect[] = [
     id: "cozy",
     name: "작은 방",
     description: "아늑하고 포근한",
-    icon: Heart
+    icon: Home
   },
   {
     id: "vintage",
@@ -37,10 +37,22 @@ const voiceEffects: VoiceEffect[] = [
     icon: Radio
   },
   {
+    id: "warm",
+    name: "따스하게",
+    description: "부드럽고 따뜻한",
+    icon: Heart
+  },
+  {
     id: "breeze",
     name: "바람 소리",
     description: "야외의 현장감",
     icon: Wind
+  },
+  {
+    id: "cave",
+    name: "동굴",
+    description: "신비롭고 깊은",
+    icon: Mountain
   }
 ];
 
@@ -61,12 +73,13 @@ export const VoiceEffectSelector = ({
 }: VoiceEffectSelectorProps) => {
   return (
     <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-4">
         <Sparkles className="w-4 h-4 text-primary" />
         <span className="text-sm font-medium text-foreground">음성 효과 선택</span>
+        <span className="text-xs text-muted-foreground ml-auto">탭하여 미리 듣기</span>
       </div>
       
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         {voiceEffects.map((effect) => {
           const IconComponent = effect.icon;
           const isSelected = selectedEffect === effect.id;
@@ -81,19 +94,30 @@ export const VoiceEffectSelector = ({
                 onPreview(effect.id);
               }}
               disabled={isPlaying}
-              className={`h-auto p-3 flex flex-col items-center space-y-1 ${
-                isSelected ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+              className={`h-auto p-3 flex flex-col items-center space-y-2 transition-all duration-200 ${
+                isSelected 
+                  ? 'bg-primary text-primary-foreground shadow-md' 
+                  : 'hover:bg-muted/50'
               }`}
             >
-              <IconComponent className="w-4 h-4" />
+              <IconComponent className="w-5 h-5" />
               <div className="text-center">
-                <div className="text-xs font-medium">{effect.name}</div>
-                <div className="text-xs opacity-70">{effect.description}</div>
+                <div className="text-xs font-medium leading-tight">{effect.name}</div>
+                <div className="text-xs opacity-70 leading-tight mt-0.5">{effect.description}</div>
               </div>
             </Button>
           );
         })}
       </div>
+      
+      {isPlaying && (
+        <div className="flex items-center justify-center mt-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <div className="w-1 h-1 bg-primary rounded-full animate-pulse"></div>
+            <span>재생 중...</span>
+          </div>
+        </div>
+      )}
     </Card>
   );
 };
