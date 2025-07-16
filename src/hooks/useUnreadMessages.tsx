@@ -1,0 +1,90 @@
+
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+
+export const useUnreadMessages = () => {
+  const [unreadCount, setUnreadCount] = useState(0);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const fetchUnreadCount = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('voice_message_recipients')
+        .select('id')
+        .eq('recipient_id', user.id)
+        .is('listened_at', null);
+
+      if (error) throw error;
+      setUnreadCount(data?.length || 0);
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  };
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      await Notification.requestPermission();
+    }
+  };
+
+  const showNotification = (title: string, body: string) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, {
+        body,
+        icon: '/favicon.ico',
+        badge: '/favicon.ico'
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchUnreadCount();
+      requestNotificationPermission();
+      
+      // Subscribe to new messages
+      const channel = supabase
+        .channel('voice-message-notifications')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'voice_message_recipients',
+            filter: `recipient_id=eq.${user.id}`
+          },
+          (payload) => {
+            setUnreadCount(prev => prev + 1);
+            
+            // Show toast notification
+            toast({
+              title: "새 음성 메시지",
+              description: "새로운 메아리가 도착했습니다."
+            });
+
+            // Show browser notification
+            showNotification(
+              "새 음성 메시지",
+              "새로운 메아리가 도착했습니다."
+            );
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user, toast]);
+
+  const markAsRead = async () => {
+    setUnreadCount(0);
+  };
+
+  return { unreadCount, markAsRead, fetchUnreadCount };
+};

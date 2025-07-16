@@ -196,7 +196,7 @@ export const MainRecorder = () => {
           {Array.from({ length: 8 }).map((_, index) => (
             <div
               key={index}
-              className="w-2 bg-red-500 rounded-full transition-all duration-75"
+              className="w-2 bg-primary rounded-full transition-all duration-75"
               style={{
                 height: `${Math.max(8, audioLevel * 60 + Math.random() * 20)}px`,
                 animationDelay: `${index * 0.1}s`
@@ -212,11 +212,12 @@ export const MainRecorder = () => {
           size="lg"
           onClick={isRecording ? stopRecording : startRecording}
           className={`
-            w-40 h-40 rounded-full border-4 border-red-500/20 transition-all duration-300 
+            w-40 h-40 rounded-full border-4 transition-all duration-300 
             ${isRecording 
-              ? 'bg-red-600 animate-pulse shadow-2xl shadow-red-500/50' 
-              : 'bg-red-500 hover:bg-red-600 hover:scale-105 shadow-xl shadow-red-500/30'
+              ? 'bg-primary/80 border-primary/30 animate-pulse shadow-2xl' 
+              : 'bg-primary hover:bg-primary/90 border-primary/20 hover:scale-105 shadow-xl'
             }
+            shadow-primary/30
           `}
         >
           {isRecording ? (
@@ -228,7 +229,7 @@ export const MainRecorder = () => {
         
         {/* Pulse Ring Animation */}
         {isRecording && (
-          <div className="absolute inset-0 rounded-full border-4 border-red-500/30 animate-ping" />
+          <div className="absolute inset-0 rounded-full border-4 border-primary/30 animate-ping" />
         )}
       </div>
       
@@ -237,7 +238,7 @@ export const MainRecorder = () => {
         {isRecording ? (
           <p>음성 메시지를 모든 사용자에게 전송하고 있습니다. 완료하려면 버튼을 다시 눌러주세요.</p>
         ) : (
-          <p>빨간 버튼을 눌러서 모든 사용자에게 음성 메시지를 전송하세요.</p>
+          <p>버튼을 눌러서 모든 사용자에게 음성 메시지를 전송하세요.</p>
         )}
       </div>
     </div>

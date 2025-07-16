@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 
 interface VoiceMessage {
   id: string;
@@ -14,6 +15,7 @@ interface VoiceMessage {
   created_at: string;
   title: string;
   sender_id: string;
+  listened: boolean;
   profiles?: {
     username: string;
   };
@@ -26,10 +28,12 @@ export const VoiceChatList = () => {
   
   const { user } = useAuth();
   const { toast } = useToast();
+  const { markAsRead } = useUnreadMessages();
 
   useEffect(() => {
     if (user) {
       fetchMessages();
+      markAsRead(); // Mark messages as viewed when opening the list
       
       // Subscribe to new messages
       const channel = supabase
@@ -194,8 +198,8 @@ export const VoiceChatList = () => {
   if (messages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="w-24 h-24 rounded-full bg-muted/50 flex items-center justify-center mb-4">
-          <MessageCircle className="w-8 h-8 text-muted-foreground" />
+        <div className="w-24 h-24 rounded-full bg-card flex items-center justify-center mb-4">
+          <MessageCircle className="w-8 h-8 text-secondary" />
         </div>
         <h3 className="text-lg font-semibold mb-2">받은 메시지가 없습니다</h3>
         <p className="text-muted-foreground">다른 사용자들의 음성 메시지를 기다리고 있습니다.</p>
@@ -209,15 +213,27 @@ export const VoiceChatList = () => {
       
       {messages.map((message) => {
         const isPlaying = playingId === message.id;
+        const isUnread = !message.listened;
 
         return (
-          <Card key={message.id} className="p-4 hover:bg-muted/50 transition-colors">
+          <Card 
+            key={message.id} 
+            className={`p-4 transition-colors border ${
+              isUnread 
+                ? 'bg-card border-secondary/30 shadow-sm' 
+                : 'bg-muted/30 hover:bg-muted/50'
+            }`}
+          >
             <div className="flex items-center space-x-4">
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => playMessage(message)}
-                className="w-12 h-12 rounded-full bg-primary hover:bg-primary/90 text-white flex-shrink-0"
+                className={`w-12 h-12 rounded-full flex-shrink-0 ${
+                  isUnread 
+                    ? 'bg-secondary hover:bg-secondary/90 text-white' 
+                    : 'bg-primary hover:bg-primary/90 text-white'
+                }`}
               >
                 {isPlaying ? (
                   <Pause className="w-5 h-5" />
@@ -228,8 +244,13 @@ export const VoiceChatList = () => {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
-                  <h3 className="font-medium text-foreground truncate">
+                  <h3 className={`font-medium truncate ${
+                    isUnread ? 'text-foreground font-semibold' : 'text-foreground'
+                  }`}>
                     {message.profiles?.username || '익명 사용자'}
+                    {isUnread && (
+                      <span className="ml-2 w-2 h-2 bg-secondary rounded-full inline-block"></span>
+                    )}
                   </h3>
                   <span className="text-sm text-muted-foreground flex-shrink-0">
                     {formatDuration(message.duration)}

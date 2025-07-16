@@ -93,7 +93,7 @@ export const Settings = () => {
       <h2 className="text-xl font-bold mb-4">설정</h2>
       
       {/* Echo Setting */}
-      <Card className="p-4">
+      <Card className="p-4 bg-card border-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             {echoEnabled ? (
@@ -117,7 +117,7 @@ export const Settings = () => {
       </Card>
 
       {/* User Info */}
-      <Card className="p-4">
+      <Card className="p-4 bg-card border-border">
         <div className="space-y-2">
           <h3 className="font-medium">계정 정보</h3>
           <p className="text-sm text-muted-foreground">
@@ -127,11 +127,11 @@ export const Settings = () => {
       </Card>
 
       {/* Sign Out */}
-      <Card className="p-4">
+      <Card className="p-4 bg-card border-border">
         <Button 
-          variant="destructive" 
+          variant="secondary" 
           onClick={handleSignOut}
-          className="w-full flex items-center space-x-2"
+          className="w-full flex items-center space-x-2 bg-secondary hover:bg-secondary/90"
         >
           <LogOut className="w-4 h-4" />
           <span>로그아웃</span>

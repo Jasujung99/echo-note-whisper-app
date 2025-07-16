@@ -12,10 +12,10 @@ All colors MUST be HSL.
     --background: 0 0% 7%; /* #121212 차콜 블랙 */
     --foreground: 0 0% 98%;
 
-    --card: 210 25% 15%;
+    --card: 216 34% 20%; /* 네이비 블루 계열 */
     --card-foreground: 0 0% 98%;
 
-    --popover: 210 25% 15%;
+    --popover: 216 34% 20%;
     --popover-foreground: 0 0% 98%;
 
     --primary: 168 70% 54%; /* #3FD6B2 딥 민트 */
@@ -24,42 +24,42 @@ All colors MUST be HSL.
     --secondary: 259 29% 64%; /* #9F89BC 미디엄 라벤더 */
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 210 25% 15%;
+    --muted: 216 34% 25%; /* 네이비 블루 계열 */
     --muted-foreground: 0 0% 65%;
 
     --accent: 45 72% 47%; /* #C89C2B 딥 골드 */
     --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 259 29% 64%; /* 라벤더로 변경 */
     --destructive-foreground: 0 0% 98%;
 
-    --border: 210 25% 20%;
-    --input: 210 25% 20%;
+    --border: 216 34% 25%;
+    --input: 216 34% 22%;
     --ring: 168 70% 54%; /* 딥 민트 */
 
-    --radius: 1rem;
+    --radius: 0.5rem; /* 더 미니멀하게 */
     
     /* Voice message app specific colors */
-    --record-button: 168 70% 54%; /* 딥 민트 */
+    --record-button: 168 70% 54%; /* 딥 민트로 변경 */
     --record-button-active: 168 70% 48%;
     --record-button-hover: 168 70% 60%;
     --voice-wave: 168 70% 54%;
-    --message-item: 210 25% 18%;
-    --message-item-hover: 210 25% 22%;
+    --message-item: 216 34% 22%; /* 네이비 블루 */
+    --message-item-hover: 216 34% 26%;
     
-    /* Animations */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    /* Animations - 더 부드럽고 미니멀하게 */
+    --transition-smooth: all 0.2s ease-out;
+    --transition-bounce: all 0.3s ease-out;
     
-    /* Shadows */
-    --shadow-glow: 0 0 20px hsl(var(--primary) / 0.3);
-    --shadow-record: 0 8px 32px hsl(var(--primary) / 0.4);
+    /* Shadows - 더 미묘하게 */
+    --shadow-glow: 0 0 12px hsl(var(--primary) / 0.2);
+    --shadow-record: 0 4px 16px hsl(var(--primary) / 0.25);
 
     --sidebar-background: 216 34% 17%; /* #122C5B 네이비 블루 */
     --sidebar-foreground: 0 0% 98%;
     --sidebar-primary: 168 70% 54%; /* 딥 민트 */
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 216 34% 22%;
+    --sidebar-accent: 259 29% 64%; /* 라벤더 */
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 216 34% 25%;
     --sidebar-ring: 168 70% 54%;
@@ -69,10 +69,10 @@ All colors MUST be HSL.
     --background: 0 0% 7%;
     --foreground: 0 0% 98%;
 
-    --card: 210 25% 15%;
+    --card: 216 34% 20%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 210 25% 15%;
+    --popover: 216 34% 20%;
     --popover-foreground: 0 0% 98%;
 
     --primary: 168 70% 54%;
@@ -81,24 +81,24 @@ All colors MUST be HSL.
     --secondary: 259 29% 64%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 210 25% 15%;
+    --muted: 216 34% 25%;
     --muted-foreground: 0 0% 65%;
 
     --accent: 45 72% 47%;
     --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 62% 30%;
+    --destructive: 259 29% 64%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 210 25% 20%;
-    --input: 210 25% 20%;
+    --border: 216 34% 25%;
+    --input: 216 34% 22%;
     --ring: 168 70% 54%;
     
     --sidebar-background: 216 34% 17%;
     --sidebar-foreground: 0 0% 98%;
     --sidebar-primary: 168 70% 54%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 216 34% 22%;
+    --sidebar-accent: 259 29% 64%;
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 216 34% 25%;
     --sidebar-ring: 168 70% 54%;
