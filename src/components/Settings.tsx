@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { DoorOpen, Speaker, SpeakerX, Mail, MailX } from "lucide-react";
+import { DoorOpen, Speaker, VolumeX, Mail, MailX } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -132,7 +132,7 @@ export const Settings = () => {
             {echoEnabled ? (
               <Speaker className="w-5 h-5 text-primary" />
             ) : (
-              <SpeakerX className="w-5 h-5 text-muted-foreground" />
+              <VolumeX className="w-5 h-5 text-muted-foreground" />
             )}
             <div>
               <h3 className="font-medium">메아리</h3>

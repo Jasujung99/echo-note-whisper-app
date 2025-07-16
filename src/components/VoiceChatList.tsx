@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CirclePlay, CirclePause, StopCircle, Clock, Volume2 } from "lucide-react";
@@ -143,8 +143,6 @@ export const VoiceChatList = () => {
       return `${year}-${month}-${day}`;
     }
   };
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   return (
     <div className="space-y-4 p-4 pb-20">

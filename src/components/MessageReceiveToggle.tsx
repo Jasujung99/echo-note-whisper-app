@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
-import { Inbox, InboxX } from "lucide-react";
+import { Inbox, InboxIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -74,11 +74,7 @@ export const MessageReceiveToggle = () => {
 
   return (
     <div className="flex items-center space-x-2">
-      {receiveMessages ? (
-        <Inbox className="w-5 h-5 text-primary" />
-      ) : (
-        <InboxX className="w-5 h-5 text-muted-foreground" />
-      )}
+      <Inbox className={`w-5 h-5 ${receiveMessages ? 'text-primary' : 'text-muted-foreground opacity-50'}`} />
       <Switch
         checked={receiveMessages}
         onCheckedChange={updateReceiveMessagesSetting}
