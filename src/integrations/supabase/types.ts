@@ -47,6 +47,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_nicknames: {
+        Row: {
+          assigner_id: string
+          created_at: string
+          id: string
+          nickname: string
+          target_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigner_id: string
+          created_at?: string
+          id?: string
+          nickname: string
+          target_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigner_id?: string
+          created_at?: string
+          id?: string
+          nickname?: string
+          target_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       voice_message_recipients: {
         Row: {
           created_at: string
@@ -86,6 +113,8 @@ export type Database = {
           duration: number
           id: string
           is_broadcast: boolean | null
+          message_type: string | null
+          recipient_id: string | null
           sender_id: string
           title: string | null
         }
@@ -95,6 +124,8 @@ export type Database = {
           duration: number
           id?: string
           is_broadcast?: boolean | null
+          message_type?: string | null
+          recipient_id?: string | null
           sender_id: string
           title?: string | null
         }
@@ -104,6 +135,8 @@ export type Database = {
           duration?: number
           id?: string
           is_broadcast?: boolean | null
+          message_type?: string | null
+          recipient_id?: string | null
           sender_id?: string
           title?: string | null
         }

@@ -1,7 +1,8 @@
+
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Radio, CirclePlay, CirclePause, Sparkles, Waves, RotateCcw } from "lucide-react";
+import { Radio, CirclePlay, CirclePause, Sparkles, Waves, RotateCcw, Play, Pause } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +18,7 @@ export const MainRecorder = () => {
   const [showEffects, setShowEffects] = useState(false);
   const [selectedEffect, setSelectedEffect] = useState("normal");
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const [isOriginalPlaying, setIsOriginalPlaying] = useState(false);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -25,6 +27,7 @@ export const MainRecorder = () => {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const animationRef = useRef<number | null>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const originalAudioRef = useRef<HTMLAudioElement | null>(null);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -126,6 +129,34 @@ export const MainRecorder = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const playOriginalRecording = () => {
+    if (!audioBlob) return;
+
+    if (isOriginalPlaying) {
+      // Stop playing
+      if (originalAudioRef.current) {
+        originalAudioRef.current.pause();
+        originalAudioRef.current = null;
+      }
+      setIsOriginalPlaying(false);
+    } else {
+      // Start playing
+      if (originalAudioRef.current) {
+        originalAudioRef.current.pause();
+      }
+      
+      const audioUrl = URL.createObjectURL(audioBlob);
+      originalAudioRef.current = new Audio(audioUrl);
+      originalAudioRef.current.play();
+      setIsOriginalPlaying(true);
+      
+      originalAudioRef.current.onended = () => {
+        setIsOriginalPlaying(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+    }
+  };
+
   const applyVoiceEffect = (blob: Blob, effectId: string): Blob => {
     // 실제 음성 효과는 Web Audio API를 사용하여 구현
     // 여기서는 기본적으로 원본을 반환하지만, 실제로는 각 효과에 맞는 처리를 해야 함
@@ -187,6 +218,7 @@ export const MainRecorder = () => {
           audio_url: publicUrl,
           duration: recordingTime,
           title: `음성 메시지 ${new Date().toLocaleTimeString()}`,
+          message_type: 'broadcast',
           is_broadcast: true
         });
 
@@ -240,6 +272,13 @@ export const MainRecorder = () => {
     setShowEffects(false);
     setSelectedEffect("normal");
     setRecordingTime(0);
+    
+    // Stop any playing audio
+    if (originalAudioRef.current) {
+      originalAudioRef.current.pause();
+      originalAudioRef.current = null;
+      setIsOriginalPlaying(false);
+    }
   };
 
   useEffect(() => {
@@ -258,6 +297,9 @@ export const MainRecorder = () => {
       }
       if (previewAudioRef.current) {
         previewAudioRef.current.pause();
+      }
+      if (originalAudioRef.current) {
+        originalAudioRef.current.pause();
       }
     };
   }, []);
@@ -317,9 +359,28 @@ export const MainRecorder = () => {
               )}
             </div>
 
-            {/* Controls */}
+            {/* Original Recording Playback */}
             {audioBlob && !isRecording && (
               <div className="space-y-3">
+                <Button
+                  variant="outline"
+                  onClick={playOriginalRecording}
+                  disabled={isProcessing}
+                  className="flex items-center space-x-2"
+                >
+                  {isOriginalPlaying ? (
+                    <>
+                      <Pause className="w-4 h-4" />
+                      <span>재생 중지</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4" />
+                      <span>녹음 확인</span>
+                    </>
+                  )}
+                </Button>
+
                 {!showEffects ? (
                   <div className="flex justify-center space-x-3">
                     <Button

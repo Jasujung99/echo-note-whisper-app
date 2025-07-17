@@ -3,13 +3,16 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthForm } from "@/components/AuthForm";
 import { MainRecorder } from "@/components/MainRecorder";
-import { VoiceChatList } from "@/components/VoiceChatList";
+import { DirectMessageList } from "@/components/DirectMessageList";
+import { ChatRoom } from "@/components/ChatRoom";
 import { Settings } from "@/components/Settings";
 import { BottomNav } from "@/components/BottomNav";
+import { useLocation } from "react-router-dom";
 
 const Index = () => {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState("home");
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -23,10 +26,17 @@ const Index = () => {
     return <AuthForm />;
   }
 
+  // Check if we're in a chat room
+  const isChatRoom = location.pathname.startsWith('/chat/');
+  
+  if (isChatRoom) {
+    return <ChatRoom />;
+  }
+
   const renderContent = () => {
     switch (activeTab) {
       case 'messages':
-        return <VoiceChatList />;
+        return <DirectMessageList />;
       case 'home':
         return (
           <div className="text-center py-6 border-b border-border/50 mb-6">
