@@ -22,10 +22,15 @@ export const generateRandomNickname = (): string => {
 export const getNicknameForUser = async (targetUserId: string) => {
   const { supabase } = await import("@/integrations/supabase/client");
   
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return '익명의 사용자';
+
   // 기존 닉네임이 있는지 확인
   const { data: existingNickname } = await supabase
     .from('user_nicknames')
     .select('nickname')
+    .eq('assigner_id', user.id)
     .eq('target_id', targetUserId)
     .single();
 
@@ -38,6 +43,7 @@ export const getNicknameForUser = async (targetUserId: string) => {
   const { error } = await supabase
     .from('user_nicknames')
     .insert({
+      assigner_id: user.id,
       target_id: targetUserId,
       nickname: newNickname
     });

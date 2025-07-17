@@ -16,7 +16,6 @@ interface DirectMessage {
   duration: number;
   title: string;
   created_at: string;
-  nickname: string;
 }
 
 interface ChatPreview {
