@@ -5,12 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { generateRandomNickname } from '@/utils/nicknameGenerator';
 
 export const AuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   
   const { signIn, signUp } = useAuth();
@@ -29,7 +29,9 @@ export const AuthForm = () => {
           description: "음성 쪽지에 오신 것을 환영합니다!",
         });
       } else {
-        const { error } = await signUp(email, password, username);
+        // 랜덤 닉네임 생성
+        const randomUsername = generateRandomNickname();
+        const { error } = await signUp(email, password, randomUsername);
         if (error) throw error;
         toast({
           title: "회원가입 성공",
@@ -58,18 +60,6 @@ export const AuthForm = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && (
-            <div>
-              <Input
-                type="text"
-                placeholder="사용자명"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
-            </div>
-          )}
-          
           <div>
             <Input
               type="email"
