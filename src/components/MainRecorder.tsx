@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -189,40 +188,74 @@ export const MainRecorder = () => {
   };
 
   const uploadVoiceMessage = async (blob: Blob) => {
-    if (!user) return;
+    if (!user) {
+      console.error('User not authenticated');
+      toast({
+        title: "인증 오류",
+        description: "로그인이 필요합니다.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       setIsProcessing(true);
+      console.log('Starting voice message upload for user:', user.id);
       
       // 선택된 효과 적용
       const processedBlob = applyVoiceEffect(blob, selectedEffect);
       
-      // Upload audio file to Supabase Storage
-      const fileName = `${user.id}/${Date.now()}.webm`;
+      // Upload audio file to Supabase Storage with better file naming
+      const timestamp = Date.now();
+      const fileName = `${user.id}_${timestamp}.webm`;
+      const filePath = `${user.id}/${fileName}`;
+      
+      console.log('Uploading file to path:', filePath);
+      
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('voice-messages')
-        .upload(fileName, processedBlob);
+        .upload(filePath, processedBlob, {
+          contentType: 'audio/webm',
+          upsert: false
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('Upload successful:', uploadData);
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('voice-messages')
-        .getPublicUrl(fileName);
+        .getPublicUrl(filePath);
+
+      console.log('Public URL:', publicUrl);
 
       // Save message to database as broadcast
-      const { error: dbError } = await supabase
-        .from('voice_messages')
-        .insert({
-          sender_id: user.id,
-          audio_url: publicUrl,
-          duration: recordingTime,
-          title: `음성 메시지 ${new Date().toLocaleTimeString()}`,
-          message_type: 'broadcast',
-          is_broadcast: true
-        });
+      const messageData = {
+        sender_id: user.id,
+        audio_url: publicUrl,
+        duration: recordingTime,
+        title: `음성 메시지 ${new Date().toLocaleTimeString()}`,
+        message_type: 'broadcast',
+        is_broadcast: true
+      };
 
-      if (dbError) throw dbError;
+      console.log('Inserting message data:', messageData);
+
+      const { data: insertData, error: dbError } = await supabase
+        .from('voice_messages')
+        .insert(messageData)
+        .select();
+
+      if (dbError) {
+        console.error('Database error:', dbError);
+        throw dbError;
+      }
+
+      console.log('Message inserted successfully:', insertData);
 
       toast({
         title: "전송 완료",
@@ -236,11 +269,11 @@ export const MainRecorder = () => {
       setShowEffects(false);
       setSelectedEffect("normal");
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error uploading voice message:", error);
       toast({
         title: "전송 오류",
-        description: "음성 메시지 전송에 실패했습니다.",
+        description: error.message || "음성 메시지 전송에 실패했습니다.",
         variant: "destructive"
       });
     } finally {

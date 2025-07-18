@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,9 +38,10 @@ export const AuthForm = () => {
         });
       }
     } catch (error: any) {
+      console.error('Authentication error:', error);
       toast({
         title: "오류",
-        description: error.message,
+        description: error.message || "인증 중 오류가 발생했습니다.",
         variant: "destructive",
       });
     } finally {

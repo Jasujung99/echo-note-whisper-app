@@ -37,10 +37,14 @@ export const useAuth = () => {
   };
 
   const signUp = async (email: string, password: string, username: string) => {
+    // 이메일 확인 후 리다이렉트 URL 설정
+    const redirectUrl = `${window.location.origin}/`;
+    
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo: redirectUrl,
         data: {
           username,
         },
