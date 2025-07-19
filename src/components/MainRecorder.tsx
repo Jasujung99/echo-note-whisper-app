@@ -252,10 +252,16 @@ export const MainRecorder = () => {
               )}
             </div>
 
-            {showEffects && (
+            {showEffects && audioBlob && (
               <VoiceEffectSelector
+                audioBlob={audioBlob}
                 selectedEffect={selectedEffect}
-                onEffectChange={setSelectedEffect}
+                onEffectSelect={(effectId) => setSelectedEffect(effectId as VoiceEffect)}
+                onPreview={(effectId) => {
+                  // Preview functionality can be added here if needed
+                  setSelectedEffect(effectId as VoiceEffect);
+                }}
+                isPlaying={false}
               />
             )}
 
