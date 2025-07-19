@@ -1,11 +1,11 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { getNicknameForUser } from "@/utils/nicknameGenerator";
+import { getNicknamesForUsers } from "@/utils/batchQueries";
 import { useNavigate } from "react-router-dom";
 
 interface DirectMessage {
@@ -31,13 +31,7 @@ export const DirectMessageList = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (user) {
-      fetchChatPreviews();
-    }
-  }, [user]);
-
-  const fetchChatPreviews = async () => {
+  const fetchChatPreviews = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -51,17 +45,19 @@ export const DirectMessageList = () => {
 
       if (error) throw error;
 
-      // 채팅 상대방별로 그룹화
+      // 채팅 상대방별로 그룹화 (배치 처리 전 단계)
       const chatMap = new Map<string, ChatPreview>();
+      const otherUserIds: string[] = [];
 
+      // 1단계: 메시지 그룹화 및 상대방 ID 수집
       for (const message of messages || []) {
         const otherUserId = message.sender_id === user.id ? message.recipient_id : message.sender_id;
         
         if (!chatMap.has(otherUserId)) {
-          const nickname = await getNicknameForUser(otherUserId);
+          otherUserIds.push(otherUserId);
           chatMap.set(otherUserId, {
             userId: otherUserId,
-            nickname,
+            nickname: '', // 임시값, 배치로 채워질 예정
             lastMessage: message,
             unreadCount: 0
           });
@@ -73,15 +69,29 @@ export const DirectMessageList = () => {
         }
       }
 
+      // 2단계: 배치로 모든 닉네임 한 번에 가져오기 (N+1 문제 해결!)
+      const nicknameMap = await getNicknamesForUsers(otherUserIds);
+
+      // 3단계: 닉네임 적용
+      chatMap.forEach((chat, userId) => {
+        chat.nickname = nicknameMap.get(userId) || '익명의 사용자';
+      });
+
       setChatPreviews(Array.from(chatMap.values()));
     } catch (error) {
       console.error('Error fetching chat previews:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const formatTime = (dateString: string) => {
+  useEffect(() => {
+    if (user) {
+      fetchChatPreviews();
+    }
+  }, [user, fetchChatPreviews]);
+
+  const formatTime = useCallback((dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffInHours = Math.abs(now.getTime() - date.getTime()) / (1000 * 60 * 60);
@@ -98,13 +108,21 @@ export const DirectMessageList = () => {
         day: 'numeric' 
       });
     }
-  };
+  }, []);
 
-  const formatDuration = (seconds: number) => {
+  const formatDuration = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, []);
+
+  // Memoized sorted chat previews for performance
+  const sortedChatPreviews = useMemo(() => {
+    return chatPreviews.sort((a, b) => {
+      if (!a.lastMessage || !b.lastMessage) return 0;
+      return new Date(b.lastMessage.created_at).getTime() - new Date(a.lastMessage.created_at).getTime();
+    });
+  }, [chatPreviews]);
 
   if (loading) {
     return (
@@ -134,7 +152,7 @@ export const DirectMessageList = () => {
           </Card>
         ) : (
           <div className="space-y-3">
-            {chatPreviews.map((chat) => (
+            {sortedChatPreviews.map((chat) => (
               <Card 
                 key={chat.userId}
                 className="p-4 bg-card/80 backdrop-blur-sm border-border/50 hover:bg-card/90 transition-colors cursor-pointer"
