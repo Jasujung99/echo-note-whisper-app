@@ -1,56 +1,88 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { User } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      setLoading(false);
-    };
-
-    getSession();
-
-    // Listen for auth changes
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
       }
     );
 
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
     return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
+    // Input validation
+    if (!email || !email.includes('@') || email.length < 5) {
+      return { error: { message: 'Please enter a valid email address' } };
+    }
+    if (!password || password.length < 6) {
+      return { error: { message: 'Password must be at least 6 characters long' } };
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      return { error };
+    } catch (err) {
+      return { error: { message: 'Sign in failed. Please try again.' } };
+    }
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    // 이메일 확인 후 리다이렉트 URL 설정
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          username,
+    // Comprehensive input validation
+    if (!email || !email.includes('@') || email.length < 5) {
+      return { error: { message: 'Please enter a valid email address' } };
+    }
+    if (!password || password.length < 8) {
+      return { error: { message: 'Password must be at least 8 characters long' } };
+    }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      return { error: { message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number' } };
+    }
+    if (!username || username.length < 2 || username.length > 50) {
+      return { error: { message: 'Username must be between 2 and 50 characters' } };
+    }
+    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+      return { error: { message: 'Username can only contain letters, numbers, underscores, and hyphens' } };
+    }
+
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            username: username.trim(),
+          },
         },
-      },
-    });
-    return { error };
+      });
+      return { error };
+    } catch (err) {
+      return { error: { message: 'Sign up failed. Please try again.' } };
+    }
   };
 
   const signOut = async () => {
@@ -60,6 +92,7 @@ export const useAuth = () => {
 
   return {
     user,
+    session,
     loading,
     signIn,
     signUp,

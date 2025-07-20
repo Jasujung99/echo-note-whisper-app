@@ -59,7 +59,6 @@ export const MainRecorder = () => {
       }, 1000);
 
     } catch (error) {
-      console.error('Error starting recording:', error);
       toast({
         title: "녹음 오류",
         description: "마이크 접근 권한을 확인해주세요.",
@@ -106,7 +105,6 @@ export const MainRecorder = () => {
 
   const uploadVoiceMessage = async (blob: Blob) => {
     if (!user) {
-      console.error('User not authenticated');
       toast({
         title: "인증 오류",
         description: "로그인이 필요합니다.",
@@ -115,19 +113,38 @@ export const MainRecorder = () => {
       return;
     }
 
+    // File validation
+    const maxFileSize = 10 * 1024 * 1024; // 10MB
+    if (blob.size > maxFileSize) {
+      toast({
+        title: "파일 크기 오류",
+        description: "파일 크기는 10MB를 초과할 수 없습니다.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Duration validation (max 10 minutes = 600 seconds)
+    if (recordingTime > 600) {
+      toast({
+        title: "녹음 시간 오류",
+        description: "녹음 시간은 10분을 초과할 수 없습니다.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setIsProcessing(true);
-      console.log('Starting voice message upload for user:', user.id);
       
       // 선택된 효과 적용
       const processedBlob = applyVoiceEffect(blob, selectedEffect);
       
-      // Upload audio file to Supabase Storage with better file naming
+      // Upload audio file to Supabase Storage with secure UUID-based naming
       const timestamp = Date.now();
-      const fileName = `message_${timestamp}.webm`;
+      const randomId = crypto.randomUUID();
+      const fileName = `${randomId}_${timestamp}.webm`;
       const filePath = `${user.id}/${fileName}`;
-      
-      console.log('Uploading file to path:', filePath);
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('voice-messages')
@@ -137,42 +154,26 @@ export const MainRecorder = () => {
         });
 
       if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw new Error(`파일 업로드 실패: ${uploadError.message}`);
+        throw new Error('파일 업로드에 실패했습니다.');
       }
-
-      console.log('Upload successful:', uploadData);
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('voice-messages')
-        .getPublicUrl(filePath);
-
-      console.log('Public URL:', publicUrl);
 
       // Save message to database as broadcast
       const messageData = {
         sender_id: user.id,
-        audio_url: publicUrl,
+        audio_url: filePath, // Store the path, not public URL for security
         duration: recordingTime,
         title: `음성 메시지 ${new Date().toLocaleTimeString()}`,
         message_type: 'broadcast',
         is_broadcast: true
       };
 
-      console.log('Inserting message data:', messageData);
-
-      const { data: insertData, error: dbError } = await supabase
+      const { error: dbError } = await supabase
         .from('voice_messages')
-        .insert(messageData)
-        .select();
+        .insert(messageData);
 
       if (dbError) {
-        console.error('Database error:', dbError);
-        throw new Error(`메시지 저장 실패: ${dbError.message}`);
+        throw new Error('메시지 저장에 실패했습니다.');
       }
-
-      console.log('Message inserted successfully:', insertData);
 
       toast({
         title: "전송 완료",
@@ -186,7 +187,6 @@ export const MainRecorder = () => {
       setSelectedEffect("normal");
       
     } catch (error: any) {
-      console.error("Error uploading voice message:", error);
       toast({
         title: "전송 오류",
         description: error.message || "음성 메시지 전송에 실패했습니다. 다시 시도해주세요.",

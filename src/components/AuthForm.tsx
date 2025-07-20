@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { generateRandomNickname } from '@/utils/nicknameGenerator';
+import { validateEmail, validatePassword, sanitizeInput } from '@/utils/security';
 
 export const AuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -20,8 +21,23 @@ export const AuthForm = () => {
     setLoading(true);
 
     try {
+      // Client-side validation
+      const sanitizedEmail = sanitizeInput(email);
+      const sanitizedPassword = password; // Don't sanitize password as it might remove valid characters
+
+      if (!validateEmail(sanitizedEmail)) {
+        throw new Error('유효한 이메일 주소를 입력해주세요.');
+      }
+
+      if (!isLogin) {
+        const passwordValidation = validatePassword(sanitizedPassword);
+        if (!passwordValidation.valid) {
+          throw new Error(passwordValidation.message || '비밀번호가 요구사항을 충족하지 않습니다.');
+        }
+      }
+
       if (isLogin) {
-        const { error } = await signIn(email, password);
+        const { error } = await signIn(sanitizedEmail, sanitizedPassword);
         if (error) throw error;
         toast({
           title: "로그인 성공",
@@ -30,7 +46,7 @@ export const AuthForm = () => {
       } else {
         // 랜덤 닉네임 생성
         const randomUsername = generateRandomNickname();
-        const { error } = await signUp(email, password, randomUsername);
+        const { error } = await signUp(sanitizedEmail, sanitizedPassword, randomUsername);
         if (error) throw error;
         toast({
           title: "회원가입 성공",
@@ -38,7 +54,6 @@ export const AuthForm = () => {
         });
       }
     } catch (error: any) {
-      console.error('Authentication error:', error);
       toast({
         title: "오류",
         description: error.message || "인증 중 오류가 발생했습니다.",
@@ -70,13 +85,14 @@ export const AuthForm = () => {
             />
           </div>
           
-          <div>
+           <div>
             <Input
               type="password"
-              placeholder="비밀번호"
+              placeholder={isLogin ? "비밀번호" : "비밀번호 (8자 이상, 대소문자, 숫자 포함)"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={isLogin ? 1 : 8}
             />
           </div>
 
