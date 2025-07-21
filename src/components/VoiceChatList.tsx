@@ -29,6 +29,32 @@ export const VoiceChatList = () => {
 
   useEffect(() => {
     fetchMessages();
+    
+    // 실시간 구독 추가 - 새 메시지가 도착하면 리스트 새로고침
+    if (user) {
+      const channel = supabase
+        .channel('voice-chat-updates')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'voice_message_recipients',
+            filter: `recipient_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('새 메시지 수신:', payload);
+            // 새 메시지가 도착하면 리스트 새로고침
+            fetchMessages();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        console.log('실시간 구독 해제');
+        supabase.removeChannel(channel);
+      };
+    }
   }, [user]);
 
   const fetchMessages = async (isLoadMore = false) => {
@@ -44,6 +70,8 @@ export const VoiceChatList = () => {
     }
 
     try {
+      console.log('메시지 목록 가져오기 시작:', { currentOffset, limit });
+      
       const { data, error } = await supabase
         .from('voice_message_recipients')
         .select(`
@@ -65,6 +93,8 @@ export const VoiceChatList = () => {
 
       if (error) throw error;
 
+      console.log('받은 메시지 데이터:', data);
+
       const formattedMessages = data?.map(item => ({
         id: item.voice_messages.id,
         audio_url: item.voice_messages.audio_url,
@@ -73,6 +103,8 @@ export const VoiceChatList = () => {
         sender_id: item.voice_messages.sender_id,
         listened_at: item.listened_at
       })) || [];
+
+      console.log('포맷된 메시지:', formattedMessages);
 
       if (isLoadMore) {
         setMessages(prev => [...prev, ...formattedMessages]);
@@ -84,7 +116,7 @@ export const VoiceChatList = () => {
       setHasMore(formattedMessages.length === limit);
 
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error('메시지 가져오기 오류:', error);
     } finally {
       setIsLoading(false);
       setLoadingMore(false);
@@ -111,10 +143,12 @@ export const VoiceChatList = () => {
             .eq('recipient_id', user?.id);
 
           if (error) throw error;
+          
+          console.log('메시지 읽음 처리 완료:', message.id);
           markAsRead();
-          fetchMessages();
+          fetchMessages(); // 리스트 새로고침
         } catch (error) {
-          console.error('Error marking as read:', error);
+          console.error('읽음 처리 오류:', error);
         }
       }
     } catch (error) {
