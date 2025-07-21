@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CirclePlay, CirclePause, StopCircle, Clock, Volume2, ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { formatTime, formatRelativeDate } from "@/utils/audioUtils";
 
 interface VoiceMessage {
   id: string;
@@ -17,15 +19,13 @@ interface VoiceMessage {
 
 export const VoiceChatList = () => {
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
-  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { user } = useAuth();
   const { markAsRead } = useUnreadMessages();
+  const audioPlayer = useAudioPlayer();
 
   useEffect(() => {
     fetchMessages();
@@ -98,77 +98,30 @@ export const VoiceChatList = () => {
   };
 
   const playMessage = async (message: VoiceMessage) => {
-    if (currentlyPlaying === message.id) {
-      stopAudio();
-      return;
-    }
+    try {
+      await audioPlayer.toggle(message.audio_url, message.id);
+      
+      // Mark as read if not already listened
+      if (!message.listened_at) {
+        try {
+          const { error } = await supabase
+            .from('voice_message_recipients')
+            .update({ listened_at: new Date().toISOString() })
+            .eq('message_id', message.id)
+            .eq('recipient_id', user?.id);
 
-    if (audioRef.current) {
-      stopAudio();
-    }
-
-    setCurrentlyPlaying(message.id);
-    setIsPlaying(true);
-
-    audioRef.current = new Audio(message.audio_url);
-    audioRef.current.play();
-
-    audioRef.current.onended = () => {
-      stopAudio();
-    };
-
-    // Mark as read
-    if (!message.listened_at) {
-      try {
-        const { error } = await supabase
-          .from('voice_message_recipients')
-          .update({ listened_at: new Date().toISOString() })
-          .eq('message_id', message.id)
-          .eq('recipient_id', user?.id);
-
-        if (error) throw error;
-        markAsRead();
-        fetchMessages();
-      } catch (error) {
-        console.error('Error marking as read:', error);
+          if (error) throw error;
+          markAsRead();
+          fetchMessages();
+        } catch (error) {
+          console.error('Error marking as read:', error);
+        }
       }
+    } catch (error) {
+      console.error('Error playing message:', error);
     }
   };
 
-  const stopAudio = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-    setIsPlaying(false);
-    setCurrentlyPlaying(null);
-  };
-
-  const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.round(seconds % 60);
-    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
-  };
-
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diff / (1000 * 3600 * 24));
-
-    if (diffDays === 0) {
-      return '오늘';
-    } else if (diffDays === 1) {
-      return '어제';
-    } else if (diffDays < 7) {
-      return `${diffDays}일 전`;
-    } else {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-  };
 
   return (
     <div className="space-y-4 p-4 pb-20">
@@ -201,7 +154,7 @@ export const VoiceChatList = () => {
                     disabled={isLoading}
                     className="rounded-full w-10 h-10 p-0"
                   >
-                    {currentlyPlaying === message.id && isPlaying ? (
+                    {audioPlayer.state.playingId === message.id && audioPlayer.state.isPlaying ? (
                       <CirclePause className="w-4 h-4" />
                     ) : (
                       <CirclePlay className="w-4 h-4" />
@@ -216,16 +169,16 @@ export const VoiceChatList = () => {
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {formatDate(message.created_at)}
+                      {formatRelativeDate(message.created_at)}
                     </p>
                   </div>
                 </div>
 
-                {currentlyPlaying === message.id && isPlaying && (
+                {audioPlayer.state.playingId === message.id && audioPlayer.state.isPlaying && (
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => stopAudio()}
+                    onClick={() => audioPlayer.stop()}
                     className="rounded-full w-8 h-8 p-0"
                   >
                     <StopCircle className="w-3 h-3" />

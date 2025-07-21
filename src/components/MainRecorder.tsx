@@ -1,93 +1,44 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mic, MicOff, Square, Trash2, Send, Volume2, Settings } from "lucide-react";
+import { Mic, Square, Trash2, Send, Volume2, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { VoiceEffectSelector } from "./VoiceEffectSelector";
+import { useVoiceRecorder } from "@/hooks/useVoiceRecorder";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { formatTime, validateAudioFile, createSecureFileName } from "@/utils/audioUtils";
 
 type VoiceEffect = "normal" | "robot" | "echo" | "chipmunk" | "deep";
 
 export const MainRecorder = () => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [showEffects, setShowEffects] = useState(false);
   const [selectedEffect, setSelectedEffect] = useState<VoiceEffect>("normal");
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
   const { user } = useAuth();
   const { toast } = useToast();
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, []);
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setAudioBlob(audioBlob);
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-      setRecordingTime(0);
-
-      timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-      }, 1000);
-
-    } catch (error) {
-      toast({
-        title: "녹음 오류",
-        description: "마이크 접근 권한을 확인해주세요.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    }
-  };
+  const recorder = useVoiceRecorder();
+  const audioPlayer = useAudioPlayer();
 
   const deleteRecording = () => {
-    setAudioBlob(null);
-    setRecordingTime(0);
+    recorder.resetRecording();
     setShowEffects(false);
     setSelectedEffect("normal");
   };
 
-  const playRecording = () => {
-    if (audioBlob) {
-      const audio = new Audio(URL.createObjectURL(audioBlob));
-      audio.play();
+  const playRecording = async () => {
+    if (recorder.state.audioBlob) {
+      try {
+        await audioPlayer.toggle(recorder.state.audioBlob, 'recording-preview');
+      } catch (error) {
+        toast({
+          title: "재생 오류",
+          description: "음성을 재생할 수 없습니다.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -97,11 +48,6 @@ export const MainRecorder = () => {
     return blob;
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const uploadVoiceMessage = async (blob: Blob) => {
     if (!user) {
@@ -113,40 +59,19 @@ export const MainRecorder = () => {
       return;
     }
 
-    // File validation
-    const maxFileSize = 10 * 1024 * 1024; // 10MB
-    if (blob.size > maxFileSize) {
-      toast({
-        title: "파일 크기 오류",
-        description: "파일 크기는 10MB를 초과할 수 없습니다.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Duration validation (max 10 minutes = 600 seconds)
-    if (recordingTime > 600) {
-      toast({
-        title: "녹음 시간 오류",
-        description: "녹음 시간은 10분을 초과할 수 없습니다.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
-      setIsProcessing(true);
+      // Validate audio file
+      validateAudioFile(blob, recorder.state.recordingTime);
+      
+      recorder.setProcessing(true);
       
       // 선택된 효과 적용
       const processedBlob = applyVoiceEffect(blob, selectedEffect);
       
-      // Upload audio file to Supabase Storage with secure UUID-based naming
-      const timestamp = Date.now();
-      const randomId = crypto.randomUUID();
-      const fileName = `${randomId}_${timestamp}.webm`;
-      const filePath = `${user.id}/${fileName}`;
+      // Create secure file path
+      const filePath = createSecureFileName(user.id);
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('voice-messages')
         .upload(filePath, processedBlob, {
           contentType: 'audio/webm',
@@ -160,8 +85,8 @@ export const MainRecorder = () => {
       // Save message to database as broadcast
       const messageData = {
         sender_id: user.id,
-        audio_url: filePath, // Store the path, not public URL for security
-        duration: recordingTime,
+        audio_url: filePath,
+        duration: recorder.state.recordingTime,
         title: `음성 메시지 ${new Date().toLocaleTimeString()}`,
         message_type: 'broadcast',
         is_broadcast: true
@@ -181,8 +106,7 @@ export const MainRecorder = () => {
       });
 
       // Reset state
-      setAudioBlob(null);
-      setRecordingTime(0);
+      recorder.resetRecording();
       setShowEffects(false);
       setSelectedEffect("normal");
       
@@ -193,7 +117,7 @@ export const MainRecorder = () => {
         variant: "destructive"
       });
     } finally {
-      setIsProcessing(false);
+      recorder.setProcessing(false);
     }
   };
 
@@ -201,27 +125,27 @@ export const MainRecorder = () => {
     <Card className="p-6 bg-card/50 backdrop-blur-sm border-border/50">
       <div className="flex flex-col items-center space-y-4">
         {/* Recording Status */}
-        {isRecording && (
+        {recorder.state.isRecording && (
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
             <span className="text-sm text-muted-foreground">녹음 중...</span>
-            <Badge variant="secondary">{formatTime(recordingTime)}</Badge>
+            <Badge variant="secondary">{formatTime(recorder.state.recordingTime)}</Badge>
           </div>
         )}
 
         {/* Main Recording Button */}
-        {!audioBlob && (
+        {!recorder.state.audioBlob && (
           <Button
-            onClick={isRecording ? stopRecording : startRecording}
+            onClick={recorder.state.isRecording ? recorder.stopRecording : recorder.startRecording}
             size="lg"
             className={`w-20 h-20 rounded-full ${
-              isRecording 
+              recorder.state.isRecording 
                 ? 'bg-red-500 hover:bg-red-600' 
                 : 'bg-primary hover:bg-primary/90'
             }`}
-            disabled={isProcessing}
+            disabled={recorder.state.isProcessing}
           >
-            {isRecording ? (
+            {recorder.state.isRecording ? (
               <Square className="w-8 h-8" />
             ) : (
               <Mic className="w-8 h-8" />
@@ -230,10 +154,10 @@ export const MainRecorder = () => {
         )}
 
         {/* Recorded Audio Controls */}
-        {audioBlob && (
+        {recorder.state.audioBlob && (
           <div className="flex flex-col items-center space-y-4 w-full">
             <div className="flex items-center space-x-2">
-              <Badge variant="outline">{formatTime(recordingTime)}</Badge>
+              <Badge variant="outline">{formatTime(recorder.state.recordingTime)}</Badge>
               <span className="text-sm text-muted-foreground">녹음 완료</span>
             </div>
 
@@ -252,16 +176,15 @@ export const MainRecorder = () => {
               )}
             </div>
 
-            {showEffects && audioBlob && (
+            {showEffects && recorder.state.audioBlob && (
               <VoiceEffectSelector
-                audioBlob={audioBlob}
+                audioBlob={recorder.state.audioBlob}
                 selectedEffect={selectedEffect}
                 onEffectSelect={(effectId) => setSelectedEffect(effectId as VoiceEffect)}
                 onPreview={(effectId) => {
-                  // Preview functionality can be added here if needed
                   setSelectedEffect(effectId as VoiceEffect);
                 }}
-                isPlaying={false}
+                isPlaying={audioPlayer.state.isPlaying}
               />
             )}
 
@@ -270,27 +193,27 @@ export const MainRecorder = () => {
               <Button
                 variant="outline"
                 onClick={playRecording}
-                disabled={isProcessing}
+                disabled={recorder.state.isProcessing}
               >
                 <Volume2 className="w-4 h-4 mr-2" />
-                재생
+                {audioPlayer.state.isPlaying ? '일시정지' : '재생'}
               </Button>
               
               <Button
                 variant="outline"
                 onClick={deleteRecording}
-                disabled={isProcessing}
+                disabled={recorder.state.isProcessing}
               >
                 <Trash2 className="w-4 h-4 mr-2" />
                 삭제
               </Button>
               
               <Button
-                onClick={() => uploadVoiceMessage(audioBlob)}
-                disabled={isProcessing}
+                onClick={() => uploadVoiceMessage(recorder.state.audioBlob!)}
+                disabled={recorder.state.isProcessing}
                 className="bg-primary hover:bg-primary/90"
               >
-                {isProcessing ? (
+                {recorder.state.isProcessing ? (
                   <>
                     <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     전송 중...
@@ -307,7 +230,7 @@ export const MainRecorder = () => {
         )}
 
         {/* Instructions */}
-        {!isRecording && !audioBlob && (
+        {!recorder.state.isRecording && !recorder.state.audioBlob && (
           <p className="text-sm text-muted-foreground text-center">
             마이크 버튼을 눌러 음성 메시지를 녹음하세요
           </p>

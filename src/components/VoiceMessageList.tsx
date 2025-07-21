@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Play, Pause, Trash2, Share } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { formatTime, formatRelativeDate, shareAudioFile } from "@/utils/audioUtils";
 
 interface VoiceMessage {
   id: string;
@@ -18,50 +20,13 @@ interface VoiceMessageListProps {
 }
 
 export const VoiceMessageList = ({ messages, onDeleteMessage }: VoiceMessageListProps) => {
-  const [playingId, setPlayingId] = useState<string | null>(null);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [audioDuration, setAudioDuration] = useState(0);
-  
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
+  const audioPlayer = useAudioPlayer();
 
-  const playMessage = async (message: VoiceMessage) => {
+  const togglePlayMessage = async (message: VoiceMessage) => {
     try {
-      // Stop current playback
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-
-      if (playingId === message.id) {
-        setPlayingId(null);
-        return;
-      }
-
-      // Create audio from blob
-      const audioUrl = URL.createObjectURL(message.blob);
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-
-      audio.addEventListener('loadedmetadata', () => {
-        setAudioDuration(audio.duration);
-      });
-
-      audio.addEventListener('timeupdate', () => {
-        setCurrentTime(audio.currentTime);
-      });
-
-      audio.addEventListener('ended', () => {
-        setPlayingId(null);
-        setCurrentTime(0);
-        URL.revokeObjectURL(audioUrl);
-      });
-
-      await audio.play();
-      setPlayingId(message.id);
-      
+      await audioPlayer.toggle(message.blob, message.id);
     } catch (error) {
-      console.error("Error playing audio:", error);
       toast({
         title: "재생 오류",
         description: "음성 메시지를 재생할 수 없습니다.",
@@ -70,16 +35,9 @@ export const VoiceMessageList = ({ messages, onDeleteMessage }: VoiceMessageList
     }
   };
 
-  const pauseMessage = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      setPlayingId(null);
-    }
-  };
-
   const deleteMessage = (id: string) => {
-    if (playingId === id) {
-      pauseMessage();
+    if (audioPlayer.state.playingId === id) {
+      audioPlayer.stop();
     }
     onDeleteMessage(id);
     toast({
@@ -90,73 +48,27 @@ export const VoiceMessageList = ({ messages, onDeleteMessage }: VoiceMessageList
 
   const shareMessage = async (message: VoiceMessage) => {
     try {
-      if (navigator.share && navigator.canShare) {
-        const file = new File([message.blob], `${message.title}.webm`, {
-          type: message.blob.type
-        });
-        
-        await navigator.share({
-          title: message.title,
-          files: [file]
-        });
-      } else {
-        // Fallback: copy to clipboard or download
-        const url = URL.createObjectURL(message.blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${message.title}.webm`;
-        a.click();
-        URL.revokeObjectURL(url);
-        
+      await shareAudioFile(message.blob, message.title);
+      toast({
+        title: "공유 완료",
+        description: "음성 메시지를 공유했습니다."
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'FALLBACK_DOWNLOAD') {
         toast({
           title: "다운로드 시작",
           description: "음성 메시지를 다운로드합니다."
         });
+      } else {
+        toast({
+          title: "공유 오류",
+          description: "음성 메시지를 공유할 수 없습니다.",
+          variant: "destructive"
+        });
       }
-    } catch (error) {
-      console.error("Error sharing:", error);
-      toast({
-        title: "공유 오류",
-        description: "음성 메시지를 공유할 수 없습니다.",
-        variant: "destructive"
-      });
     }
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatDate = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    
-    if (hours < 1) {
-      const minutes = Math.floor(diff / (1000 * 60));
-      return `${minutes}분 전`;
-    } else if (hours < 24) {
-      return `${hours}시간 전`;
-    } else {
-      return date.toLocaleDateString('ko-KR', {
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, []);
 
   if (messages.length === 0) {
     return (
@@ -175,9 +87,9 @@ export const VoiceMessageList = ({ messages, onDeleteMessage }: VoiceMessageList
       <h2 className="text-2xl font-bold mb-6">음성 메시지</h2>
       
       {messages.map((message, index) => {
-        const isPlaying = playingId === message.id;
-        const progress = isPlaying && audioDuration > 0 
-          ? (currentTime / audioDuration) * 100 
+        const isPlaying = audioPlayer.state.playingId === message.id && audioPlayer.state.isPlaying;
+        const progress = isPlaying && audioPlayer.state.duration > 0 
+          ? (audioPlayer.state.currentTime / audioPlayer.state.duration) * 100 
           : 0;
 
         return (
@@ -193,7 +105,7 @@ export const VoiceMessageList = ({ messages, onDeleteMessage }: VoiceMessageList
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => isPlaying ? pauseMessage() : playMessage(message)}
+                    onClick={() => togglePlayMessage(message)}
                     className="w-12 h-12 rounded-full bg-primary hover:bg-primary/90 text-white"
                   >
                     {isPlaying ? (
@@ -213,7 +125,7 @@ export const VoiceMessageList = ({ messages, onDeleteMessage }: VoiceMessageList
                     </div>
                     
                     <p className="text-sm text-muted-foreground mb-2">
-                      {formatDate(message.timestamp)}
+                      {formatRelativeDate(message.timestamp)}
                     </p>
 
                     {/* Progress Bar */}
@@ -226,7 +138,7 @@ export const VoiceMessageList = ({ messages, onDeleteMessage }: VoiceMessageList
                     
                     {isPlaying && (
                       <div className="text-xs text-muted-foreground mt-1">
-                        {formatTime(currentTime)} / {formatTime(audioDuration)}
+                        {formatTime(audioPlayer.state.currentTime)} / {formatTime(audioPlayer.state.duration)}
                       </div>
                     )}
                   </div>
