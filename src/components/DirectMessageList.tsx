@@ -88,6 +88,33 @@ export const DirectMessageList = () => {
   useEffect(() => {
     if (user) {
       fetchChatPreviews();
+      
+      // 실시간 구독 - 새로운 direct message가 오면 리스트 새로고침
+      const channel = supabase
+        .channel('direct-message-updates')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'voice_messages',
+            filter: `message_type=eq.direct`
+          },
+          (payload) => {
+            console.log('새 1:1 메시지 수신:', payload);
+            // 내가 보낸 메시지이거나 받은 메시지인 경우에만 리스트 새로고침
+            const newMessage = payload.new as any;
+            if (newMessage.sender_id === user.id || newMessage.recipient_id === user.id) {
+              fetchChatPreviews();
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        console.log('1:1 메시지 실시간 구독 해제');
+        supabase.removeChannel(channel);
+      };
     }
   }, [user, fetchChatPreviews]);
 
