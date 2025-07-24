@@ -101,7 +101,7 @@ export const MainRecorder = () => {
         throw new Error('메시지 저장에 실패했습니다.');
       }
 
-      console.log('메시지 저장 완료:', messageData);
+      
 
       toast({
         title: "전송 완료",

@@ -101,7 +101,6 @@ export const DirectMessageList = () => {
             filter: `message_type=eq.direct`
           },
           (payload) => {
-            console.log('새 1:1 메시지 수신:', payload);
             // 내가 보낸 메시지이거나 받은 메시지인 경우에만 리스트 새로고침
             const newMessage = payload.new as any;
             if (newMessage.sender_id === user.id || newMessage.recipient_id === user.id) {
@@ -112,11 +111,10 @@ export const DirectMessageList = () => {
         .subscribe();
 
       return () => {
-        console.log('1:1 메시지 실시간 구독 해제');
         supabase.removeChannel(channel);
       };
     }
-  }, [user, fetchChatPreviews]);
+  }, [user]);
 
   const formatTime = useCallback((dateString: string) => {
     const date = new Date(dateString);

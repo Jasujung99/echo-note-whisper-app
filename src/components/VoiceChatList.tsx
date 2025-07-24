@@ -43,7 +43,6 @@ export const VoiceChatList = () => {
             filter: `recipient_id=eq.${user.id}`
           },
           (payload) => {
-            console.log('새 메시지 수신:', payload);
             // 새 메시지가 도착하면 리스트 새로고침
             fetchMessages();
           }
@@ -51,7 +50,6 @@ export const VoiceChatList = () => {
         .subscribe();
 
       return () => {
-        console.log('실시간 구독 해제');
         supabase.removeChannel(channel);
       };
     }
@@ -70,8 +68,6 @@ export const VoiceChatList = () => {
     }
 
     try {
-      console.log('메시지 목록 가져오기 시작:', { currentOffset, limit });
-      
       const { data, error } = await supabase
         .from('voice_message_recipients')
         .select(`
@@ -93,8 +89,6 @@ export const VoiceChatList = () => {
 
       if (error) throw error;
 
-      console.log('받은 메시지 데이터:', data);
-
       const formattedMessages = data?.map(item => ({
         id: item.voice_messages.id,
         audio_url: item.voice_messages.audio_url,
@@ -103,8 +97,6 @@ export const VoiceChatList = () => {
         sender_id: item.voice_messages.sender_id,
         listened_at: item.listened_at
       })) || [];
-
-      console.log('포맷된 메시지:', formattedMessages);
 
       if (isLoadMore) {
         setMessages(prev => [...prev, ...formattedMessages]);
@@ -144,7 +136,6 @@ export const VoiceChatList = () => {
 
           if (error) throw error;
           
-          console.log('메시지 읽음 처리 완료:', message.id);
           markAsRead();
           fetchMessages(); // 리스트 새로고침
         } catch (error) {
