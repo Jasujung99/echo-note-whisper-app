@@ -7,7 +7,7 @@ import { ArrowLeft, Mic, Square, Play, Pause, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { getNicknameForUser } from "@/utils/nicknameGenerator";
+import { getNicknameForUser, getMyNickname } from "@/utils/nicknameGenerator";
 
 interface DirectMessage {
   id: string;
@@ -28,6 +28,7 @@ export const ChatRoom = () => {
 
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [nickname, setNickname] = useState("");
+  const [myNickname, setMyNickname] = useState("");
   const [loading, setLoading] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -62,6 +63,10 @@ export const ChatRoom = () => {
       // 닉네임 가져오기
       const userNickname = await getNicknameForUser(userId);
       setNickname(userNickname);
+      
+      // 본인 닉네임 가져오기
+      const currentUserNickname = await getMyNickname();
+      setMyNickname(currentUserNickname);
 
       // 브로드캐스트 메시지(해당 사용자가 보낸)와 1:1 메시지를 모두 가져오기
       const { data: messagesData, error } = await supabase
@@ -253,7 +258,7 @@ export const ChatRoom = () => {
           <Button 
             variant="ghost" 
             size="sm"
-            onClick={() => navigate('/messages')}
+            onClick={() => navigate(-1)}
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>
@@ -262,9 +267,14 @@ export const ChatRoom = () => {
             <User className="w-4 h-4 text-primary" />
           </div>
           
-          <div>
+          <div className="flex-1">
             <h1 className="font-medium text-foreground">{nickname}</h1>
             <p className="text-xs text-muted-foreground">1:1 음성 채팅</p>
+          </div>
+          
+          <div className="text-right">
+            <p className="text-sm font-medium text-primary">{myNickname}</p>
+            <p className="text-xs text-muted-foreground">나</p>
           </div>
         </div>
       </div>

@@ -55,3 +55,20 @@ export const getNicknameForUser = async (targetUserId: string) => {
 
   return newNickname;
 };
+
+// 본인 닉네임을 가져오는 함수
+export const getMyNickname = async () => {
+  const { supabase } = await import("@/integrations/supabase/client");
+  
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return '내 닉네임';
+
+  // profiles 테이블에서 username 확인
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('user_id', user.id)
+    .single();
+
+  return profile?.username || '내 닉네임';
+};

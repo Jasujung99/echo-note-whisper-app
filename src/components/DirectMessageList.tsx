@@ -6,6 +6,7 @@ import { MessageCircle, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { getNicknamesForUsers } from "@/utils/batchQueries";
+import { getMyNickname } from "@/utils/nicknameGenerator";
 import { useNavigate } from "react-router-dom";
 
 interface DirectMessage {
@@ -27,6 +28,7 @@ interface ChatPreview {
 
 export const DirectMessageList = () => {
   const [chatPreviews, setChatPreviews] = useState<ChatPreview[]>([]);
+  const [myNickname, setMyNickname] = useState("");
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -89,6 +91,9 @@ export const DirectMessageList = () => {
   useEffect(() => {
     if (user) {
       fetchChatPreviews();
+      
+      // 본인 닉네임 가져오기
+      getMyNickname().then(setMyNickname);
       
       // 실시간 구독 - 새로운 direct message가 오면 리스트 새로고침
       const channel = supabase
@@ -170,6 +175,9 @@ export const DirectMessageList = () => {
         <div className="text-center py-6">
           <h1 className="text-2xl font-bold text-navy-900 mb-2">1:1 쪽지</h1>
           <p className="text-muted-foreground">개인 음성 메시지 대화</p>
+          {myNickname && (
+            <p className="text-sm text-primary mt-2">내 닉네임: {myNickname}</p>
+          )}
         </div>
 
         {chatPreviews.length === 0 ? (
