@@ -63,12 +63,11 @@ export const ChatRoom = () => {
       const userNickname = await getNicknameForUser(userId);
       setNickname(userNickname);
 
-      // 메시지 가져오기
+      // 브로드캐스트 메시지(해당 사용자가 보낸)와 1:1 메시지를 모두 가져오기
       const { data: messagesData, error } = await supabase
         .from('voice_messages')
         .select('*')
-        .eq('message_type', 'direct')
-        .or(`and(sender_id.eq.${user.id},recipient_id.eq.${userId}),and(sender_id.eq.${userId},recipient_id.eq.${user.id})`)
+        .or(`and(message_type.eq.direct,or(and(sender_id.eq.${user.id},recipient_id.eq.${userId}),and(sender_id.eq.${userId},recipient_id.eq.${user.id}))),and(message_type.eq.broadcast,sender_id.eq.${userId})`)
         .order('created_at', { ascending: true });
 
       if (error) throw error;

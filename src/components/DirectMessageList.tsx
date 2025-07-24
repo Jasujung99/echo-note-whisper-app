@@ -35,12 +35,11 @@ export const DirectMessageList = () => {
     if (!user) return;
 
     try {
-      // 내가 보내거나 받은 1:1 메시지들을 가져오기
+      // 브로드캐스트 메시지(메아리)와 1:1 메시지를 모두 가져오기
       const { data: messages, error } = await supabase
         .from('voice_messages')
         .select('*')
-        .eq('message_type', 'direct')
-        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+        .or(`and(message_type.eq.direct,or(sender_id.eq.${user.id},recipient_id.eq.${user.id})),and(message_type.eq.broadcast,sender_id.neq.${user.id})`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -51,7 +50,9 @@ export const DirectMessageList = () => {
 
       // 1단계: 메시지 그룹화 및 상대방 ID 수집
       for (const message of messages || []) {
-        const otherUserId = message.sender_id === user.id ? message.recipient_id : message.sender_id;
+        // 브로드캐스트 메시지의 경우 발송자가 상대방, direct 메시지의 경우 기존 로직
+        const otherUserId = message.message_type === 'broadcast' ? message.sender_id 
+          : (message.sender_id === user.id ? message.recipient_id : message.sender_id);
         
         if (!chatMap.has(otherUserId)) {
           otherUserIds.push(otherUserId);
@@ -97,13 +98,17 @@ export const DirectMessageList = () => {
           {
             event: 'INSERT',
             schema: 'public',
-            table: 'voice_messages',
-            filter: `message_type=eq.direct`
+            table: 'voice_messages'
           },
           (payload) => {
-            // 내가 보낸 메시지이거나 받은 메시지인 경우에만 리스트 새로고침
+            // 1:1 메시지이거나 브로드캐스트 메시지(메아리)인 경우 리스트 새로고침
             const newMessage = payload.new as any;
-            if (newMessage.sender_id === user.id || newMessage.recipient_id === user.id) {
+            const isDirectMessage = newMessage.message_type === 'direct' && 
+              (newMessage.sender_id === user.id || newMessage.recipient_id === user.id);
+            const isBroadcastMessage = newMessage.message_type === 'broadcast' && 
+              newMessage.sender_id !== user.id;
+            
+            if (isDirectMessage || isBroadcastMessage) {
               fetchChatPreviews();
             }
           }
