@@ -34,6 +34,8 @@ export const ChatRoom = () => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [canSendMessage, setCanSendMessage] = useState(false);
+  const [hasSentReply, setHasSentReply] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -83,6 +85,13 @@ export const ChatRoom = () => {
       })) || [];
 
       setMessages(formattedMessages);
+
+      // 메시지 전송 가능 여부 확인
+      const receivedMessages = formattedMessages.filter(msg => !msg.is_sender);
+      const sentReplies = formattedMessages.filter(msg => msg.is_sender && msg.message_type === 'direct');
+      
+      setCanSendMessage(receivedMessages.length > 0);
+      setHasSentReply(sentReplies.length > 0);
     } catch (error) {
       console.error('Error fetching chat data:', error);
       toast({
@@ -186,6 +195,9 @@ export const ChatRoom = () => {
       setAudioBlob(null);
       setRecordingTime(0);
       
+      // Update state to prevent further sending
+      setHasSentReply(true);
+      
       // Refresh messages
       await fetchChatData();
       
@@ -219,6 +231,34 @@ export const ChatRoom = () => {
       
       audioRef.current.onended = () => {
         setPlayingId(null);
+      };
+    }
+  };
+
+  const playPreview = () => {
+    if (!audioBlob) return;
+    
+    if (playingId === 'preview') {
+      // Stop preview
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      setPlayingId(null);
+    } else {
+      // Start preview
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      
+      const url = URL.createObjectURL(audioBlob);
+      audioRef.current = new Audio(url);
+      audioRef.current.play();
+      setPlayingId('preview');
+      
+      audioRef.current.onended = () => {
+        setPlayingId(null);
+        URL.revokeObjectURL(url);
       };
     }
   };
@@ -324,7 +364,19 @@ export const ChatRoom = () => {
       {/* Recording Interface */}
       <div className="bg-card/80 backdrop-blur-sm border-t border-border/50 p-4">
         <div className="max-w-md mx-auto">
-          {!audioBlob ? (
+          {!canSendMessage ? (
+            <div className="text-center p-4">
+              <p className="text-sm text-muted-foreground">
+                메시지를 받은 후에 답장을 보낼 수 있습니다.
+              </p>
+            </div>
+          ) : hasSentReply ? (
+            <div className="text-center p-4">
+              <p className="text-sm text-muted-foreground">
+                이미 답장을 보냈습니다. 더 이상 메시지를 보낼 수 없습니다.
+              </p>
+            </div>
+          ) : !audioBlob ? (
             <div className="text-center">
               {isRecording && (
                 <div className="mb-4">
@@ -350,22 +402,52 @@ export const ChatRoom = () => {
                   <Mic className="w-6 h-6" />
                 )}
               </Button>
+              
+              <p className="text-xs text-muted-foreground mt-2">
+                답장을 녹음하세요 (1개만 가능)
+              </p>
             </div>
           ) : (
-            <div className="flex items-center justify-center space-x-4">
-              <Button
-                variant="outline"
-                onClick={() => setAudioBlob(null)}
-              >
-                다시 녹음
-              </Button>
+            <div className="flex flex-col items-center space-y-3">
+              <div className="text-sm text-muted-foreground">
+                녹음 완료: {formatTime(recordingTime)}
+              </div>
               
-              <Button
-                onClick={sendMessage}
-                className="bg-primary hover:bg-primary/90"
-              >
-                전송하기
-              </Button>
+              <div className="flex items-center justify-center space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={playPreview}
+                  size="sm"
+                >
+                  {playingId === 'preview' ? (
+                    <>
+                      <Pause className="w-4 h-4 mr-2" />
+                      일시정지
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4 mr-2" />
+                      미리듣기
+                    </>
+                  )}
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => setAudioBlob(null)}
+                  size="sm"
+                >
+                  다시 녹음
+                </Button>
+                
+                <Button
+                  onClick={sendMessage}
+                  className="bg-primary hover:bg-primary/90"
+                  size="sm"
+                >
+                  전송하기
+                </Button>
+              </div>
             </div>
           )}
         </div>
