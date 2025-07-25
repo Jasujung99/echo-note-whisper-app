@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { DoorOpen, Speaker, VolumeX, Mail, MailX } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { DoorOpen, Speaker, VolumeX, Mail, MailX, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -121,6 +122,35 @@ export const Settings = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      // Delete the user account - this will cascade delete all related data
+      const { error } = await supabase.auth.admin.deleteUser(user.id);
+      
+      if (error) throw error;
+
+      toast({
+        title: "계정 삭제 완료",
+        description: "계정이 성공적으로 삭제되었습니다."
+      });
+      
+      // Sign out after deletion
+      await signOut();
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toast({
+        title: "계정 삭제 오류",
+        description: "계정 삭제 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 p-4">
       <h2 className="text-xl font-bold mb-4">설정</h2>
@@ -193,6 +223,39 @@ export const Settings = () => {
           <DoorOpen className="w-4 h-4" />
           <span>로그아웃</span>
         </Button>
+      </Card>
+
+      {/* Delete Account */}
+      <Card className="p-4 bg-card border-border">
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button 
+              variant="destructive" 
+              className="w-full flex items-center space-x-2"
+              disabled={loading}
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>계정 삭제</span>
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>계정을 삭제하시겠습니까?</AlertDialogTitle>
+              <AlertDialogDescription>
+                이 작업은 되돌릴 수 없습니다. 계정과 모든 데이터가 영구적으로 삭제됩니다.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>취소</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDeleteAccount}
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                삭제
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </Card>
     </div>
   );

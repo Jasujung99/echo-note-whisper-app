@@ -56,25 +56,29 @@ export const getNicknameForUser = async (targetUserId: string) => {
   return newNickname;
 };
 
-// 본인 닉네임을 가져오는 함수 (다른 사용자가 나에게 부여한 닉네임)
+// 본인의 고정 닉네임을 가져오는 함수 (프로필에서)
 export const getMyNickname = async () => {
   const { supabase } = await import("@/integrations/supabase/client");
   
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return '익명의 사용자';
 
-  // 다른 사용자가 나에게 부여한 닉네임 중 하나 가져오기
-  const { data: assignedNickname } = await supabase
-    .from('user_nicknames')
-    .select('nickname')
-    .eq('target_id', user.id)
-    .limit(1)
-    .single();
+  try {
+    // 프로필 테이블에서 고정된 닉네임 가져오기
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('user_id', user.id)
+      .single();
 
-  if (assignedNickname) {
-    return assignedNickname.nickname;
+    if (error || !profile?.username) {
+      // 프로필이 없거나 닉네임이 없으면 랜덤 생성
+      return generateRandomNickname();
+    }
+
+    return profile.username;
+  } catch (error) {
+    console.error('Error fetching user nickname:', error);
+    return generateRandomNickname();
   }
-
-  // 아직 부여받은 닉네임이 없다면 랜덤 생성
-  return generateRandomNickname();
 };
