@@ -20,14 +20,8 @@ export const generateRandomNickname = (): string => {
 };
 
 export const generateUsernameForSignup = (): string => {
-  const adjectives = ["Ocean", "Forest", "Sky", "Star", "Moon", "Wind", "Cloud", "Spring", "Peace", "Gold"];
-  const nouns = ["Whale", "Rabbit", "Bird", "Fox", "Tiger", "Cat", "Dog", "Fish", "Rose", "Sun"];
-  
-  const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
-  const randomNum = Math.floor(Math.random() * 1000);
-  
-  return `${randomAdjective}${randomNoun}${randomNum}`;
+  // 가입 시에도 한글 닉네임 사용
+  return generateRandomNickname();
 };
 
 export const getNicknameForUser = async (targetUserId: string) => {

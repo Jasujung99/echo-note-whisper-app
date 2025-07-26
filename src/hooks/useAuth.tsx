@@ -29,12 +29,12 @@ export const useAuth = () => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Input validation
+    // 기본 검증
     if (!email || !email.includes('@') || email.length < 5) {
-      return { error: { message: 'Please enter a valid email address' } };
+      return { error: { message: '유효한 이메일 주소를 입력해주세요' } };
     }
     if (!password || password.length < 6) {
-      return { error: { message: 'Password must be at least 6 characters long' } };
+      return { error: { message: '비밀번호는 최소 6자리 이상이어야 합니다' } };
     }
 
     try {
@@ -44,20 +44,20 @@ export const useAuth = () => {
       });
       return { error };
     } catch (err) {
-      return { error: { message: 'Sign in failed. Please try again.' } };
+      return { error: { message: '로그인에 실패했습니다. 다시 시도해주세요.' } };
     }
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    // Input validation for email and password only
+    // 이메일과 비밀번호 검증만 수행
     if (!email || !email.includes('@') || email.length < 5) {
-      return { error: { message: 'Please enter a valid email address' } };
+      return { error: { message: '유효한 이메일 주소를 입력해주세요' } };
     }
     if (!password || password.length < 8) {
-      return { error: { message: 'Password must be at least 8 characters long' } };
+      return { error: { message: '비밀번호는 최소 8자리 이상이어야 합니다' } };
     }
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      return { error: { message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number' } };
+      return { error: { message: '비밀번호는 대문자, 소문자, 숫자를 각각 하나 이상 포함해야 합니다' } };
     }
 
     try {
@@ -75,7 +75,7 @@ export const useAuth = () => {
       });
       return { error };
     } catch (err) {
-      return { error: { message: 'Sign up failed. Please try again.' } };
+      return { error: { message: '회원가입에 실패했습니다. 다시 시도해주세요.' } };
     }
   };
 

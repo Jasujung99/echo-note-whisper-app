@@ -59,7 +59,7 @@ export const useUnreadMessages = () => {
       fetchUnreadCount();
       requestNotificationPermission();
       
-      // Subscribe to new messages
+      // Subscribe to new messages with improved real-time handling
       const channel = supabase
         .channel('voice-message-notifications')
         .on(
@@ -71,6 +71,8 @@ export const useUnreadMessages = () => {
             filter: `recipient_id=eq.${user.id}`
           },
           async (payload) => {
+            console.log('New message received:', payload);
+            
             // Check if user wants to receive messages before showing notifications
             const { data: profile } = await supabase
               .from('profiles')
@@ -80,7 +82,12 @@ export const useUnreadMessages = () => {
 
             if (!profile?.receive_messages) return;
 
-            setUnreadCount(prev => prev + 1);
+            // Immediately update unread count
+            setUnreadCount(prev => {
+              const newCount = prev + 1;
+              console.log('Updated unread count:', newCount);
+              return newCount;
+            });
             
             // Show toast notification
             toast({
@@ -95,7 +102,9 @@ export const useUnreadMessages = () => {
             );
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Real-time subscription status:', status);
+        });
 
       return () => {
         supabase.removeChannel(channel);
