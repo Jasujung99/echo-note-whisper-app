@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { generateRandomNickname } from '@/utils/nicknameGenerator';
+import { generateUsernameForSignup } from '@/utils/nicknameGenerator';
 import { validateEmail, validatePassword, sanitizeInput } from '@/utils/security';
 
 export const AuthForm = () => {
@@ -44,8 +44,8 @@ export const AuthForm = () => {
           description: "음성 쪽지에 오신 것을 환영합니다!",
         });
       } else {
-        // 랜덤 닉네임 생성
-        const randomUsername = generateRandomNickname();
+        // 회원가입용 사용자명 생성
+        const randomUsername = generateUsernameForSignup();
         const { error } = await signUp(sanitizedEmail, sanitizedPassword, randomUsername);
         if (error) throw error;
         toast({
