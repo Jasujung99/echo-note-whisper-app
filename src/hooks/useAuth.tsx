@@ -49,7 +49,7 @@ export const useAuth = () => {
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    // Comprehensive input validation
+    // Input validation for email and password only
     if (!email || !email.includes('@') || email.length < 5) {
       return { error: { message: 'Please enter a valid email address' } };
     }
@@ -58,12 +58,6 @@ export const useAuth = () => {
     }
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
       return { error: { message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number' } };
-    }
-    if (!username || username.length < 2 || username.length > 50) {
-      return { error: { message: 'Username must be between 2 and 50 characters' } };
-    }
-    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
-      return { error: { message: 'Username can only contain letters, numbers, underscores, and hyphens' } };
     }
 
     try {
