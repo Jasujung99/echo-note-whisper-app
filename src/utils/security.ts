@@ -57,7 +57,63 @@ export const validateAudioFile = (blob: Blob, maxSizeBytes: number = 10 * 1024 *
 };
 
 export const sanitizeInput = (input: string): string => {
-  return input.trim().replace(/[<>\"']/g, '');
+  if (!input || typeof input !== 'string') return '';
+  
+  return input
+    .trim()
+    // Remove HTML tags
+    .replace(/<[^>]*>/g, '')
+    // Encode HTML entities
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;')
+    // Remove potentially dangerous characters
+    .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+    // Remove javascript: and data: protocols
+    .replace(/javascript:/gi, '')
+    .replace(/data:/gi, '')
+    // Remove SQL injection patterns
+    .replace(/union\s+select/gi, '')
+    .replace(/drop\s+table/gi, '')
+    .replace(/delete\s+from/gi, '')
+    .replace(/insert\s+into/gi, '')
+    .replace(/update\s+set/gi, '');
+};
+
+export const validateAndSanitizeInput = (input: string, maxLength: number = 1000): { valid: boolean; sanitized: string; error?: string } => {
+  if (!input || typeof input !== 'string') {
+    return { valid: false, sanitized: '', error: 'Input must be a non-empty string' };
+  }
+  
+  if (input.length > maxLength) {
+    return { valid: false, sanitized: '', error: `Input exceeds maximum length of ${maxLength} characters` };
+  }
+  
+  const sanitized = sanitizeInput(input);
+  
+  // Additional validation checks
+  const suspiciousPatterns = [
+    /\bjavascript:/i,
+    /\bdata:/i,
+    /\bon\w+\s*=/i, // Event handlers like onclick=
+    /\beval\s*\(/i,
+    /\bexec\s*\(/i,
+    /<iframe/i,
+    /<object/i,
+    /<embed/i,
+    /<link/i,
+    /<meta/i,
+  ];
+  
+  const hasSuspiciousContent = suspiciousPatterns.some(pattern => pattern.test(input));
+  if (hasSuspiciousContent) {
+    return { valid: false, sanitized: '', error: 'Input contains potentially malicious content' };
+  }
+  
+  return { valid: true, sanitized };
 };
 
 export const generateSecureFileName = (extension: string = 'webm'): string => {
