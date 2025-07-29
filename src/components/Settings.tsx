@@ -127,8 +127,12 @@ export const Settings = () => {
     
     setLoading(true);
     try {
-      // Delete the user account - this will cascade delete all related data
-      const { error } = await supabase.auth.admin.deleteUser(user.id);
+      // Use secure Edge Function for account deletion
+      const { error } = await supabase.functions.invoke('delete-account', {
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      });
       
       if (error) throw error;
 
@@ -137,8 +141,7 @@ export const Settings = () => {
         description: "계정이 성공적으로 삭제되었습니다."
       });
       
-      // Sign out after deletion
-      await signOut();
+      // The Edge Function handles sign out automatically after deletion
     } catch (error) {
       console.error('Error deleting account:', error);
       toast({
