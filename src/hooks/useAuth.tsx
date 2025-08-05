@@ -79,6 +79,64 @@ export const useAuth = () => {
     }
   };
 
+  const signInWithInviteCode = async (code: string) => {
+    // 기본 검증
+    if (!code || code.length < 6) {
+      return { error: { message: '유효한 초청 코드를 입력해주세요' } };
+    }
+
+    try {
+      // 초청 코드 검증
+      const { data: inviteCode, error: fetchError } = await supabase
+        .from('invite_codes')
+        .select('*')
+        .eq('code', code)
+        .eq('is_used', false)
+        .single();
+
+      if (fetchError || !inviteCode) {
+        return { error: { message: '유효하지 않거나 이미 사용된 초청 코드입니다' } };
+      }
+
+      // 임시 계정 생성
+      const tempEmail = `invite_${code}@temp.local`;
+      const tempPassword = `temp_${code}_${Date.now()}`;
+
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: tempEmail,
+        password: tempPassword,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            username: inviteCode.nickname,
+            is_invite_user: true,
+            invite_code: code,
+          },
+        },
+      });
+
+      if (authError) {
+        return { error: authError };
+      }
+
+      // 초청 코드를 사용됨으로 표시
+      if (authData.user) {
+        await supabase
+          .from('invite_codes')
+          .update({
+            is_used: true,
+            used_by: authData.user.id,
+            used_at: new Date().toISOString(),
+          })
+          .eq('code', code);
+      }
+
+      return { error: null };
+    } catch (err) {
+      return { error: { message: '초청 코드 처리 중 오류가 발생했습니다. 다시 시도해주세요.' } };
+    }
+  };
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     return { error };
@@ -90,6 +148,7 @@ export const useAuth = () => {
     loading,
     signIn,
     signUp,
+    signInWithInviteCode,
     signOut,
   };
 };
